@@ -51,27 +51,36 @@ function LoginPage() {
 
       <div className="relative z-10 w-full flex items-center justify-center p-4 sm:p-8">
         <div className="w-full max-w-md text-center text-primary-foreground">
-          <div className="flex justify-center mb-5">
-            <img
-              src={logo}
-              alt="Big Pizza"
-              width={180}
-              height={180}
-              className="size-40 sm:size-44 drop-shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
-            />
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-gold/30 blur-2xl scale-110" aria-hidden />
+              <img
+                src={logo}
+                alt="Big Pizza"
+                width={200}
+                height={200}
+                className="relative size-44 sm:size-52 rounded-full object-cover ring-4 ring-gold/80 shadow-[0_12px_40px_rgba(0,0,0,0.55)]"
+              />
+            </div>
           </div>
 
-          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-wide text-gold">
+          <h1
+            className="text-3xl sm:text-4xl font-normal tracking-[0.18em] text-gold"
+            style={{ fontFamily: "var(--font-condensed)" }}
+          >
             SISTEMA DE CONTROLE
           </h1>
-          <p className="mt-1 text-base sm:text-lg font-medium text-primary-foreground/95">
-            Consumo e Financeiro
+          <p className="mt-1 text-base sm:text-lg font-medium text-primary-foreground tracking-wide">
+            Consumo &amp; Financeiro
           </p>
 
-          <h2 className="font-display text-3xl sm:text-4xl mt-6 text-gold">Bem-vindo!</h2>
-          <p className="mt-1 text-sm text-primary-foreground/85">
+          <h2 className="font-display italic text-4xl sm:text-5xl mt-8 text-gold drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
+            Bem-vindo!
+          </h2>
+          <p className="mt-2 text-sm text-primary-foreground/85">
             Faça login para acessar o sistema
           </p>
+
 
           <form onSubmit={handleLogin} className="space-y-4 text-left mt-6">
             <Field
