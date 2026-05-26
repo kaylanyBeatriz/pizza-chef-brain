@@ -48,6 +48,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --font-display: "Playfair Display", Georgia, serif;
+  --font-condensed: "Bebas Neue", "Inter", sans-serif;
 }
 
 :root {
