@@ -1,14 +1,15 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { Pizza } from "lucide-react";
+import { User, KeyRound, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import logo from "@/assets/big-pizza-logo.png";
+import pizzaBg from "@/assets/pizza-bg.jpg";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -17,12 +18,11 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [remember, setRemember] = useState(true);
 
-  // login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // signup
   const [sName, setSName] = useState("");
   const [sEmail, setSEmail] = useState("");
   const [sPassword, setSPassword] = useState("");
@@ -46,143 +46,203 @@ function LoginPage() {
     const { error } = await supabase.auth.signUp({
       email: sEmail,
       password: sPassword,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { full_name: sName },
-      },
+      options: { emailRedirectTo: window.location.origin, data: { full_name: sName } },
     });
     setLoading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
+    if (error) { toast.error(error.message); return; }
     toast.success("Conta criada! Confirme seu email para entrar.");
   }
 
   async function handleGoogle() {
     setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      setLoading(false);
-      toast.error("Falha no login com Google");
-      return;
-    }
+    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+    if (result.error) { setLoading(false); toast.error("Falha no login com Google"); return; }
     if (result.redirected) return;
     navigate({ to: "/dashboard" });
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Brand side */}
-      <div className="hidden lg:flex flex-1 bg-secondary text-secondary-foreground relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: "radial-gradient(circle at 25% 30%, var(--gold) 0, transparent 40%), radial-gradient(circle at 75% 70%, var(--primary) 0, transparent 40%)",
-        }} />
-        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          <div className="flex items-center gap-3">
-            <div className="size-12 rounded-full bg-gold text-gold-foreground grid place-items-center">
-              <Pizza className="size-7" />
-            </div>
-            <span className="font-display text-2xl">Forno Nobile</span>
+    <div className="min-h-screen w-full flex items-stretch bg-primary relative overflow-hidden">
+      {/* Pizza background */}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${pizzaBg})` }}
+        aria-hidden
+      />
+      {/* Red gradient overlay — solid at top, fades into pizza at bottom */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(to bottom, oklch(0.52 0.18 27) 0%, oklch(0.52 0.18 27) 45%, oklch(0.52 0.18 27 / 0.75) 60%, oklch(0.25 0.1 27 / 0.35) 100%)",
+        }}
+        aria-hidden
+      />
+
+      <div className="relative z-10 w-full flex items-center justify-center p-4 sm:p-8">
+        <div className="w-full max-w-md text-center text-primary-foreground">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <img
+              src={logo}
+              alt="Big Pizza"
+              width={180}
+              height={180}
+              className="size-40 sm:size-44 drop-shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+            />
           </div>
-          <div className="space-y-4 max-w-md">
-            <h1 className="font-display text-5xl leading-tight">
-              A tradição<br />
-              <span className="text-gold">italiana</span><br />
-              em cada gestão.
-            </h1>
-            <p className="text-secondary-foreground/80">
-              Controle estoque, pedidos e desempenho da sua pizzaria
-              com a elegância de uma trattoria clássica.
-            </p>
-          </div>
-          <p className="text-sm text-secondary-foreground/60">
-            © {new Date().getFullYear()} Forno Nobile · Gestão integrada
+
+          {/* Headings */}
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-wide text-gold">
+            SISTEMA DE CONTROLE
+          </h1>
+          <p className="mt-1 text-base sm:text-lg font-medium text-primary-foreground/95">
+            Consumo e Financeiro
+          </p>
+
+          <h2 className="font-display text-3xl sm:text-4xl mt-6 text-gold">Bem-vindo!</h2>
+          <p className="mt-1 text-sm text-primary-foreground/85">
+            Faça login para acessar o sistema
+          </p>
+
+          <Tabs defaultValue="login" className="mt-6">
+            <TabsList className="grid grid-cols-2 w-full bg-black/20 border border-white/15">
+              <TabsTrigger value="login" className="data-[state=active]:bg-gold data-[state=active]:text-gold-foreground text-primary-foreground">
+                Entrar
+              </TabsTrigger>
+              <TabsTrigger value="signup" className="data-[state=active]:bg-gold data-[state=active]:text-gold-foreground text-primary-foreground">
+                Criar conta
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="login" className="mt-5">
+              <form onSubmit={handleLogin} className="space-y-4 text-left">
+                <Field
+                  icon={<User className="size-4" />}
+                  label="Usuário"
+                  type="email"
+                  placeholder="Digite seu usuário"
+                  value={email}
+                  onChange={setEmail}
+                />
+                <Field
+                  icon={<KeyRound className="size-4" />}
+                  label="Senha"
+                  type="password"
+                  placeholder="Digite sua senha"
+                  value={password}
+                  onChange={setPassword}
+                />
+
+                <div className="flex items-center justify-between text-xs text-primary-foreground/90">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={remember}
+                      onCheckedChange={(v) => setRemember(!!v)}
+                      className="border-white/60 data-[state=checked]:bg-gold data-[state=checked]:border-gold data-[state=checked]:text-gold-foreground"
+                    />
+                    Lembrar-me
+                  </label>
+                  <button type="button" className="hover:text-gold transition-colors">
+                    Esqueci minha senha
+                  </button>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-12 mt-2 rounded-full bg-[oklch(0.46_0.18_27)] hover:bg-[oklch(0.42_0.18_27)] text-primary-foreground text-base font-semibold shadow-lg shadow-black/30 border border-white/10"
+                >
+                  <LogIn className="size-5 mr-2" />
+                  Entrar
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={handleGoogle}
+                  disabled={loading}
+                  className="w-full text-xs text-primary-foreground/80 hover:text-gold transition-colors pt-1"
+                >
+                  ou entrar com Google
+                </button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="signup" className="mt-5">
+              <form onSubmit={handleSignup} className="space-y-4 text-left">
+                <Field
+                  icon={<User className="size-4" />}
+                  label="Nome completo"
+                  type="text"
+                  placeholder="Seu nome"
+                  value={sName}
+                  onChange={setSName}
+                />
+                <Field
+                  icon={<User className="size-4" />}
+                  label="Email"
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={sEmail}
+                  onChange={setSEmail}
+                />
+                <Field
+                  icon={<KeyRound className="size-4" />}
+                  label="Senha"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  value={sPassword}
+                  onChange={setSPassword}
+                  minLength={6}
+                />
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-12 mt-2 rounded-full bg-[oklch(0.46_0.18_27)] hover:bg-[oklch(0.42_0.18_27)] text-primary-foreground text-base font-semibold shadow-lg shadow-black/30 border border-white/10"
+                >
+                  Criar conta
+                </Button>
+                <p className="text-[11px] text-primary-foreground/70 text-center">
+                  O primeiro usuário será admin automaticamente.
+                </p>
+              </form>
+            </TabsContent>
+          </Tabs>
+
+          <p className="mt-6 text-xs">
+            <Link to="/" className="text-primary-foreground/70 hover:text-gold">← Voltar</Link>
           </p>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Form side */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-background">
-        <Card className="w-full max-w-md border-border/60">
-          <CardHeader className="text-center">
-            <div className="mx-auto size-12 rounded-full bg-primary/10 text-primary grid place-items-center lg:hidden mb-2">
-              <Pizza className="size-6" />
-            </div>
-            <CardTitle className="font-display text-2xl">Acessar o sistema</CardTitle>
-            <CardDescription>Entre ou crie sua conta para começar.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="login">
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="login">Entrar</TabsTrigger>
-                <TabsTrigger value="signup">Criar conta</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="login" className="space-y-4 mt-6">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Senha</Label>
-                    <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Entrando..." : "Entrar"}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="signup" className="space-y-4 mt-6">
-                <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="sname">Nome completo</Label>
-                    <Input id="sname" required value={sName} onChange={(e) => setSName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="semail">Email</Label>
-                    <Input id="semail" type="email" required value={sEmail} onChange={(e) => setSEmail(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="spassword">Senha</Label>
-                    <Input id="spassword" type="password" required minLength={6} value={sPassword} onChange={(e) => setSPassword(e.target.value)} />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Criando..." : "Criar conta"}
-                  </Button>
-                  <p className="text-xs text-muted-foreground text-center">
-                    O primeiro usuário será admin automaticamente.
-                  </p>
-                </form>
-              </TabsContent>
-            </Tabs>
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">ou</span>
-              </div>
-            </div>
-
-            <Button variant="outline" className="w-full" onClick={handleGoogle} disabled={loading}>
-              <svg className="size-4 mr-2" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A10.99 10.99 0 0 0 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09A6.6 6.6 0 0 1 5.49 12c0-.73.13-1.43.35-2.09V7.07H2.18A10.99 10.99 0 0 0 1 12c0 1.77.43 3.45 1.18 4.93l3.66-2.84z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/>
-              </svg>
-              Entrar com Google
-            </Button>
-
-            <p className="text-center text-xs text-muted-foreground mt-6">
-              <Link to="/" className="hover:text-foreground">← Voltar</Link>
-            </p>
-          </CardContent>
-        </Card>
+function Field({
+  icon, label, type, placeholder, value, onChange, minLength,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  type: string;
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+  minLength?: number;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-medium text-primary-foreground/90 pl-1">{label}</label>
+      <div className="relative">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</span>
+        <Input
+          type={type}
+          required
+          minLength={minLength}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-11 pl-11 rounded-full bg-background/95 text-foreground placeholder:text-muted-foreground border-0 shadow-inner focus-visible:ring-2 focus-visible:ring-gold"
+        />
       </div>
     </div>
   );
