@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { User, KeyRound, LogIn } from "lucide-react";
+import { User, KeyRound, LogIn, UserPlus, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,25 +13,49 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
+type Mode = "login" | "signup";
+
 function LoginPage() {
   const navigate = useNavigate();
+  const [mode, setMode] = useState<Mode>("login");
   const [loading, setLoading] = useState(false);
   const [remember, setRemember] = useState(true);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  async function handleLogin(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message === "Invalid login credentials" ? "Credenciais inválidas" : error.message);
-      return;
+    if (mode === "login") {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setLoading(false);
+      if (error) {
+        toast.error(error.message === "Invalid login credentials" ? "Credenciais inválidas" : error.message);
+        return;
+      }
+      toast.success("Bem-vindo!");
+      navigate({ to: "/dashboard" });
+    } else {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: { full_name: name },
+        },
+      });
+      setLoading(false);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Conta criada! Verifique seu email para confirmar.");
+      setMode("login");
     }
-    toast.success("Bem-vindo!");
-    navigate({ to: "/dashboard" });
   }
+
+  const isLogin = mode === "login";
 
   return (
     <div className="min-h-screen w-full flex items-stretch bg-primary relative overflow-hidden">
@@ -59,7 +83,7 @@ function LoginPage() {
                 alt="Big Pizza"
                 width={200}
                 height={200}
-                className="relative size-44 sm:size-52 rounded-full object-cover ring-4 ring-gold/80 shadow-[0_12px_40px_rgba(0,0,0,0.55)]"
+                className="relative size-44 sm:size-52 rounded-full object-contain drop-shadow-[0_12px_40px_rgba(0,0,0,0.55)]"
               />
             </div>
           </div>
@@ -75,19 +99,49 @@ function LoginPage() {
           </p>
 
           <h2 className="font-display italic text-4xl sm:text-5xl mt-8 text-gold drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]">
-            Bem-vindo!
+            {isLogin ? "Bem-vindo!" : "Criar conta"}
           </h2>
           <p className="mt-2 text-sm text-primary-foreground/85">
-            Faça login para acessar o sistema
+            {isLogin ? "Faça login para acessar o sistema" : "Preencha os dados para começar"}
           </p>
 
+          <div className="mt-6 inline-flex rounded-full bg-background/15 p-1 border border-white/15">
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className={`px-5 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                isLogin ? "bg-gold text-gold-foreground" : "text-primary-foreground/80 hover:text-primary-foreground"
+              }`}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("signup")}
+              className={`px-5 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                !isLogin ? "bg-gold text-gold-foreground" : "text-primary-foreground/80 hover:text-primary-foreground"
+              }`}
+            >
+              Criar conta
+            </button>
+          </div>
 
-          <form onSubmit={handleLogin} className="space-y-4 text-left mt-6">
+          <form onSubmit={handleSubmit} className="space-y-4 text-left mt-6">
+            {!isLogin && (
+              <Field
+                icon={<User className="size-4" />}
+                label="Nome"
+                type="text"
+                placeholder="Seu nome completo"
+                value={name}
+                onChange={setName}
+              />
+            )}
             <Field
-              icon={<User className="size-4" />}
-              label="Usuário"
+              icon={<Mail className="size-4" />}
+              label="Email"
               type="email"
-              placeholder="Digite seu usuário"
+              placeholder="Digite seu email"
               value={email}
               onChange={setEmail}
             />
@@ -95,33 +149,61 @@ function LoginPage() {
               icon={<KeyRound className="size-4" />}
               label="Senha"
               type="password"
-              placeholder="Digite sua senha"
+              placeholder={isLogin ? "Digite sua senha" : "Crie uma senha"}
               value={password}
               onChange={setPassword}
             />
 
-            <div className="flex items-center justify-between text-xs text-primary-foreground/90">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={remember}
-                  onCheckedChange={(v) => setRemember(!!v)}
-                  className="border-white/60 data-[state=checked]:bg-gold data-[state=checked]:border-gold data-[state=checked]:text-gold-foreground"
-                />
-                Lembrar-me
-              </label>
-              <button type="button" className="hover:text-gold transition-colors">
-                Esqueci minha senha
-              </button>
-            </div>
+            {isLogin && (
+              <div className="flex items-center justify-between text-xs text-primary-foreground/90">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={remember}
+                    onCheckedChange={(v) => setRemember(!!v)}
+                    className="border-white/60 data-[state=checked]:bg-gold data-[state=checked]:border-gold data-[state=checked]:text-gold-foreground"
+                  />
+                  Lembrar-me
+                </label>
+                <button type="button" className="hover:text-gold transition-colors">
+                  Esqueci minha senha
+                </button>
+              </div>
+            )}
 
             <Button
               type="submit"
               disabled={loading}
               className="w-full h-12 mt-2 rounded-full bg-[oklch(0.46_0.18_27)] hover:bg-[oklch(0.42_0.18_27)] text-primary-foreground text-base font-semibold shadow-lg shadow-black/30 border border-white/10"
             >
-              <LogIn className="size-5 mr-2" />
-              Entrar
+              {isLogin ? <LogIn className="size-5 mr-2" /> : <UserPlus className="size-5 mr-2" />}
+              {loading ? "Aguarde..." : isLogin ? "Entrar" : "Criar conta"}
             </Button>
+
+            <p className="text-center text-xs text-primary-foreground/85 pt-1">
+              {isLogin ? (
+                <>
+                  Não tem conta?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setMode("signup")}
+                    className="text-gold font-semibold hover:underline"
+                  >
+                    Criar conta
+                  </button>
+                </>
+              ) : (
+                <>
+                  Já tem uma conta?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setMode("login")}
+                    className="text-gold font-semibold hover:underline"
+                  >
+                    Entrar
+                  </button>
+                </>
+              )}
+            </p>
           </form>
         </div>
       </div>
