@@ -20,7 +20,7 @@ async function fetchConsumo() {
   const [itemsRes, ordersRes, ingRes] = await Promise.all([
     supabase
       .from("order_items")
-      .select("quantity, product:products(name,recipe:recipes(ingredient_id,quantity)), order:orders!inner(created_at,status)")
+      .select("quantity, product:products(name,recipe:product_ingredients(ingredient_id,quantity)), order:orders!inner(created_at,status)")
       .gte("order.created_at", start.toISOString())
       .neq("order.status", "cancelado"),
     supabase
