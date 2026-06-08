@@ -20,17 +20,16 @@ interface Stats {
   revenueMonth: number;
   lowStock: Array<{ id: string; name: string; stock_quantity: number; min_stock: number; unit: string }>;
   topPizzas: Array<{ name: string; quantidade: number }>;
-  last7Days: Array<{ dia: string; vendas: number }>;
+  monthly: Array<{ mes: string; vendas: number }>;
 }
 
 async function fetchStats(): Promise<Stats> {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const sevenDaysAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
+  const yearAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
-  const [todayRes, monthRes, lowRes, itemsRes, weekRes] = await Promise.all([
+  const [todayRes, monthRes, lowRes, itemsRes, monthlyRes] = await Promise.all([
     supabase.from("orders").select("total").gte("created_at", todayStart).neq("status", "cancelado"),
     supabase.from("orders").select("total").gte("created_at", monthStart).neq("status", "cancelado"),
     supabase.from("ingredients").select("id,name,stock_quantity,min_stock,unit"),
@@ -42,13 +41,12 @@ async function fetchStats(): Promise<Stats> {
     supabase
       .from("orders")
       .select("total,created_at")
-      .gte("created_at", sevenDaysAgo.toISOString())
+      .gte("created_at", yearAgo.toISOString())
       .neq("status", "cancelado"),
   ]);
 
   const lowStock = (lowRes.data ?? []).filter((i) => i.stock_quantity <= i.min_stock);
 
-  // top pizzas
   const counts = new Map<string, number>();
   (itemsRes.data ?? []).forEach((row: any) => {
     const n = row.product?.name ?? "—";
@@ -59,21 +57,25 @@ async function fetchStats(): Promise<Stats> {
     .slice(0, 5)
     .map(([name, quantidade]) => ({ name, quantidade }));
 
-  // last 7 days revenue
-  const byDay = new Map<string, number>();
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 86400000);
-    const key = d.toISOString().slice(0, 10);
-    byDay.set(key, 0);
+  // last 12 months revenue
+  const byMonth = new Map<string, number>();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    byMonth.set(key, 0);
   }
-  (weekRes.data ?? []).forEach((o) => {
-    const key = o.created_at.slice(0, 10);
-    if (byDay.has(key)) byDay.set(key, (byDay.get(key) ?? 0) + Number(o.total));
+  (monthlyRes.data ?? []).forEach((o) => {
+    const key = o.created_at.slice(0, 7);
+    if (byMonth.has(key)) byMonth.set(key, (byMonth.get(key) ?? 0) + Number(o.total));
   });
-  const last7Days = Array.from(byDay.entries()).map(([k, v]) => ({
-    dia: new Date(k).toLocaleDateString("pt-BR", { weekday: "short" }),
-    vendas: v,
-  }));
+  const monthly = Array.from(byMonth.entries()).map(([k, v]) => {
+    const [y, m] = k.split("-");
+    const d = new Date(Number(y), Number(m) - 1, 1);
+    return {
+      mes: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
+      vendas: v,
+    };
+  });
 
   return {
     ordersToday: todayRes.data?.length ?? 0,
@@ -82,7 +84,7 @@ async function fetchStats(): Promise<Stats> {
     revenueMonth: (monthRes.data ?? []).reduce((s, o) => s + Number(o.total), 0),
     lowStock,
     topPizzas,
-    last7Days,
+    monthly,
   };
 }
 
@@ -108,13 +110,13 @@ function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="font-display">Vendas — últimos 7 dias</CardTitle>
+            <CardTitle className="font-display">Vendas — últimos 12 meses</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={data?.last7Days ?? []}>
+              <LineChart data={data?.monthly ?? []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="dia" stroke="var(--muted-foreground)" fontSize={12} />
+                <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} />
                 <YAxis stroke="var(--muted-foreground)" fontSize={12} tickFormatter={(v) => `R$${v}`} />
                 <Tooltip
                   contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 }}
