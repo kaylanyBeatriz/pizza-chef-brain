@@ -110,13 +110,13 @@ function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="font-display">Vendas — últimos 7 dias</CardTitle>
+            <CardTitle className="font-display">Vendas — últimos 12 meses</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={data?.last7Days ?? []}>
+              <LineChart data={data?.monthly ?? []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="dia" stroke="var(--muted-foreground)" fontSize={12} />
+                <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} />
                 <YAxis stroke="var(--muted-foreground)" fontSize={12} tickFormatter={(v) => `R$${v}`} />
                 <Tooltip
                   contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 }}
