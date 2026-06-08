@@ -20,7 +20,7 @@ interface Stats {
   revenueMonth: number;
   lowStock: Array<{ id: string; name: string; stock_quantity: number; min_stock: number; unit: string }>;
   topPizzas: Array<{ name: string; quantidade: number }>;
-  last7Days: Array<{ dia: string; vendas: number }>;
+  monthly: Array<{ mes: string; vendas: number }>;
 }
 
 async function fetchStats(): Promise<Stats> {
