@@ -74,13 +74,13 @@ function ProdutosPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="font-display text-3xl">Pizzas & Receitas</h1>
-          <p className="text-muted-foreground">Cadastre o cardápio e a receita de cada pizza para a baixa automática.</p>
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl md:text-3xl">Pizzas & Receitas</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Cadastre o cardápio e a receita de cada pizza para a baixa automática.</p>
         </div>
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditing(null)}>
+            <Button onClick={() => setEditing(null)} className="w-full sm:w-auto">
               <Plus className="size-4 mr-2" /> Nova pizza
             </Button>
           </DialogTrigger>
@@ -92,52 +92,93 @@ function ProdutosPage() {
         </Dialog>
       </div>
 
-      <Card>
+      {/* Cards (mobile) */}
+      <div className="grid gap-3 md:hidden">
+        {isLoading && <p className="text-center text-muted-foreground py-8">Carregando…</p>}
+        {!isLoading && (products?.length ?? 0) === 0 && (
+          <p className="text-center text-muted-foreground py-8">Nenhuma pizza cadastrada.</p>
+        )}
+        {products?.map((p) => (
+          <Card key={p.id}>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{p.name}</p>
+                  {p.description && <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>}
+                  <p className="text-xs text-muted-foreground mt-1">{p.category}</p>
+                </div>
+                <Badge className={p.is_active ? "bg-success text-success-foreground shrink-0" : "bg-muted text-muted-foreground shrink-0"}>
+                  {p.is_active ? "Ativa" : "Inativa"}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-display text-lg">{Number(p.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="outline" onClick={() => setRecipeFor(p)}>
+                    <ChefHat className="size-4 mr-1" /> Receita
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}>
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Remover ${p.name}?`)) del.mutate(p.id); }}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Tabela (desktop) */}
+      <Card className="hidden md:block">
         <CardHeader><CardTitle className="font-display">Cardápio</CardTitle></CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Pizza</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Preço</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Carregando…</TableCell></TableRow>}
-              {!isLoading && (products?.length ?? 0) === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma pizza cadastrada.</TableCell></TableRow>
-              )}
-              {products?.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <p className="font-medium">{p.name}</p>
-                    {p.description && <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{p.category}</TableCell>
-                  <TableCell>{Number(p.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
-                  <TableCell>
-                    <Badge className={p.is_active ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}>
-                      {p.is_active ? "Ativa" : "Inativa"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    <Button size="sm" variant="outline" onClick={() => setRecipeFor(p)}>
-                      <ChefHat className="size-4 mr-1" /> Receita
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Remover ${p.name}?`)) del.mutate(p.id); }}>
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Pizza</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>Preço</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Carregando…</TableCell></TableRow>}
+                {!isLoading && (products?.length ?? 0) === 0 && (
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhuma pizza cadastrada.</TableCell></TableRow>
+                )}
+                {products?.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell>
+                      <p className="font-medium">{p.name}</p>
+                      {p.description && <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{p.category}</TableCell>
+                    <TableCell>{Number(p.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
+                    <TableCell>
+                      <Badge className={p.is_active ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"}>
+                        {p.is_active ? "Ativa" : "Inativa"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Button size="sm" variant="outline" onClick={() => setRecipeFor(p)}>
+                        <ChefHat className="size-4 mr-1" /> Receita
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}>
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Remover ${p.name}?`)) del.mutate(p.id); }}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
