@@ -94,6 +94,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          cancelled_at: string | null
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -101,11 +102,14 @@ export type Database = {
           id: string
           notes: string | null
           order_number: number
+          started_at: string | null
           status: Database["public"]["Enums"]["order_status"]
+          stock_deducted: boolean
           total: number
           updated_at: string
         }
         Insert: {
+          cancelled_at?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -113,11 +117,14 @@ export type Database = {
           id?: string
           notes?: string | null
           order_number?: number
+          started_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          stock_deducted?: boolean
           total?: number
           updated_at?: string
         }
         Update: {
+          cancelled_at?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -125,7 +132,9 @@ export type Database = {
           id?: string
           notes?: string | null
           order_number?: number
+          started_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          stock_deducted?: boolean
           total?: number
           updated_at?: string
         }
