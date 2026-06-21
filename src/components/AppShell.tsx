@@ -105,11 +105,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-3 pl-4 border-l border-foreground/30">
             <div className="text-right leading-tight">
-              <p className="text-sm font-semibold">
-                {roles[0] ? roles[0].charAt(0).toUpperCase() + roles[0].slice(1) : "Admin"}
-              </p>
               <p className="text-xs text-muted-foreground">
-                {user?.email ? "Pizzaria Big Pizza" : "Pizzaria Big Pizza"}
+                Pizzaria Big Pizza
               </p>
             </div>
           </div>
