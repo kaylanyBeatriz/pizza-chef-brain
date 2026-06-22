@@ -419,12 +419,12 @@ function OrderDetailsDialog({ order }: { order: Order }) {
 /* ---------------- New order ---------------- */
 
 type Line = { product_id: string; quantity: number };
-type OrderType = "retirada" | "entrega" | "local";
+type OrderType = "pickup" | "delivery" | "dine_in";
 
 const orderTypeLabel: Record<OrderType, string> = {
-  retirada: "Retirada",
-  entrega: "Entrega",
-  local: "Consumo no local",
+  pickup: "Retirada",
+  delivery: "Entrega",
+  dine_in: "Consumo no local",
 };
 
 function maskPhone(v: string) {
@@ -435,16 +435,62 @@ function maskPhone(v: string) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
+function parseMoney(v: string): number {
+  if (!v) return 0;
+  const cleaned = v.replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", ".");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function MoneyInput({
+  value, onChange, disabled, invalid, id,
+}: { value: number; onChange: (n: number) => void; disabled?: boolean; invalid?: boolean; id?: string }) {
+  const [text, setText] = useState(value ? value.toFixed(2).replace(".", ",") : "");
+  return (
+    <div className={`relative ${disabled ? "opacity-60" : ""}`}>
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+      <Input
+        id={id}
+        inputMode="decimal"
+        value={text}
+        disabled={disabled}
+        placeholder="0,00"
+        onChange={(e) => {
+          setText(e.target.value);
+          onChange(parseMoney(e.target.value));
+        }}
+        onBlur={() => {
+          const n = parseMoney(text);
+          setText(n ? n.toFixed(2).replace(".", ",") : "");
+          onChange(n);
+        }}
+        className={`pl-9 text-right ${invalid ? "border-destructive focus-visible:ring-destructive" : ""}`}
+      />
+    </div>
+  );
+}
+
+function FormErrorMessage({ children }: { children?: React.ReactNode }) {
+  if (!children) return null;
+  return (
+    <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+      <AlertCircle className="size-3" /> {children}
+    </p>
+  );
+}
+
 function NewOrderDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [orderType, setOrderType] = useState<OrderType>("retirada");
+  const [orderType, setOrderType] = useState<OrderType>("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([{ product_id: "", quantity: 1 }]);
+  const [touched, setTouched] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const { data: products } = useQuery({
     queryKey: ["products-active"],
@@ -461,28 +507,36 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
     return p && Number(p.price) > 0 && l.quantity > 0;
   });
   const subtotalAmount = validLines.reduce((s, l) => s + Number(productMap.get(l.product_id)!.price) * l.quantity, 0);
-  const effectiveDeliveryFee = orderType === "entrega" ? Math.max(0, Number(deliveryFee) || 0) : 0;
+  const effectiveDeliveryFee = orderType === "delivery" ? Math.max(0, Number(deliveryFee) || 0) : 0;
   const totalAmount = subtotalAmount + effectiveDeliveryFee;
 
-  const validation = (() => {
-    if (!lines.some((l) => l.product_id)) return "Selecione uma pizza para continuar.";
-    if (lines.some((l) => l.product_id && l.quantity < 1)) return "A quantidade deve ser maior que zero.";
-    if (lines.some((l) => {
-      const p = productMap.get(l.product_id);
-      return l.product_id && (!p || Number(p.price) <= 0);
-    })) return "Essa pizza não possui preço cadastrado.";
-    if (validLines.length === 0) return "Adicione pelo menos um item ao pedido.";
-    if (orderType === "entrega" && !deliveryAddress.trim()) return "Informe o endereço de entrega.";
-    return null;
-  })();
+  const errors = useMemo(() => {
+    const e: { items?: string; address?: string; fee?: string } = {};
+    if (!lines.some((l) => l.product_id)) e.items = "Adicione pelo menos uma pizza ao pedido.";
+    else if (validLines.length === 0) e.items = "Selecione uma pizza válida e quantidade maior que zero.";
+    if (orderType === "delivery" && !deliveryAddress.trim()) e.address = "Informe o endereço de entrega.";
+    if (orderType === "delivery" && deliveryFee < 0) e.fee = "A taxa de entrega não pode ser negativa.";
+    return e;
+  }, [lines, validLines.length, orderType, deliveryAddress, deliveryFee]);
+
+  const hasErrors = Object.keys(errors).length > 0;
+  const isDirty =
+    customerName.trim() !== "" || customerPhone.trim() !== "" || deliveryAddress.trim() !== "" ||
+    notes.trim() !== "" || deliveryFee > 0 || lines.some((l) => l.product_id);
+
+  const handleClose = () => {
+    if (isDirty) setConfirmDiscard(true);
+    else onClose();
+  };
 
   const create = useMutation({
     mutationFn: async () => {
       const metaLines = [
-        `Tipo: ${orderTypeLabel[orderType]}`,
+        `Tipo: ${orderTypeLabel[orderType]} (${orderType})`,
         customerPhone.trim() && `Telefone: ${customerPhone.trim()}`,
-        orderType === "entrega" && deliveryAddress.trim() && `Endereço: ${deliveryAddress.trim()}`,
-        orderType === "entrega" && `Taxa de entrega: ${BRL(effectiveDeliveryFee)}`,
+        orderType === "delivery" && deliveryAddress.trim() && `Endereço: ${deliveryAddress.trim()}`,
+        orderType === "delivery" && `Taxa de entrega: ${BRL(effectiveDeliveryFee)}`,
+        `Subtotal: ${BRL(subtotalAmount)}`,
       ].filter(Boolean).join("\n");
       const fullNotes = [metaLines, notes.trim()].filter(Boolean).join("\n\n");
 
@@ -509,120 +563,168 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success("Pedido criado");
+      toast.success("Pedido criado com sucesso");
       onClose();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error(e.message || "Não foi possível criar o pedido."),
   });
 
+  const handleSubmit = () => {
+    setTouched(true);
+    if (hasErrors) {
+      toast.error("Revise os campos destacados antes de continuar.");
+      return;
+    }
+    create.mutate();
+  };
+
   return (
-    <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-      <DialogHeader>
-        <DialogTitle className="font-display">Novo pedido</DialogTitle>
-        <DialogDescription>Monte o pedido com cliente, tipo de entrega e itens.</DialogDescription>
-      </DialogHeader>
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label>Cliente (opcional)</Label>
-            <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nome do cliente" />
-          </div>
-          <div className="space-y-2">
-            <Label>Telefone (opcional)</Label>
-            <Input
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(maskPhone(e.target.value))}
-              placeholder="(00) 00000-0000"
-              inputMode="tel"
-            />
-          </div>
-        </div>
+    <>
+      <DialogContent
+        className="max-w-xl p-0 gap-0 flex flex-col max-h-[90vh] sm:max-h-[85vh]"
+        onInteractOutside={(e) => { if (isDirty) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (isDirty) { e.preventDefault(); setConfirmDiscard(true); } }}
+      >
+        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+          <DialogTitle className="font-display text-xl">Novo pedido</DialogTitle>
+          <DialogDescription>Monte o pedido com cliente, tipo de atendimento e itens.</DialogDescription>
+        </DialogHeader>
 
-        <div className="space-y-2">
-          <Label>Tipo do pedido</Label>
-          <Select value={orderType} onValueChange={(v) => setOrderType(v as OrderType)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="retirada">Retirada</SelectItem>
-              <SelectItem value="entrega">Entrega</SelectItem>
-              <SelectItem value="local">Consumo no local</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {orderType === "entrega" && (
-          <div className="space-y-2">
-            <Label>Endereço de entrega</Label>
-            <Textarea
-              value={deliveryAddress}
-              onChange={(e) => setDeliveryAddress(e.target.value)}
-              rows={2}
-              placeholder="Rua, número, bairro, complemento..."
-            />
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label>Itens</Label>
-          <div className="space-y-2 max-h-80 overflow-auto pr-1">
-            {lines.map((l, idx) => (
-              <OrderItemRow
-                key={idx}
-                line={l}
-                products={products ?? []}
-                canRemove={lines.length > 1}
-                onChange={(next) => setLines((ls) => ls.map((x, i) => (i === idx ? next : x)))}
-                onRemove={() => setLines((ls) => ls.filter((_, i) => i !== idx))}
-              />
-            ))}
-          </div>
-          <Button size="sm" variant="outline" onClick={() => setLines((ls) => [...ls, { product_id: "", quantity: 1 }])}>
-            <Plus className="size-4 mr-1" /> Adicionar item
-          </Button>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Observações</Label>
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Ex: sem cebola, ponto da massa..." />
-        </div>
-
-        <div className="rounded-lg bg-muted p-3 space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal dos itens</span>
-            <span className="font-medium">{BRL(subtotalAmount)}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm gap-3">
-            <span className="text-muted-foreground">Taxa de entrega</span>
-            {orderType === "entrega" ? (
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="customer">Cliente</Label>
+              <Input id="customer" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nome do cliente" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Telefone</Label>
               <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={deliveryFee}
-                onChange={(e) => setDeliveryFee(Math.max(0, Number(e.target.value) || 0))}
-                className="h-8 w-28 text-right"
+                id="phone"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(maskPhone(e.target.value))}
+                placeholder="(00) 00000-0000"
+                inputMode="tel"
               />
-            ) : (
-              <span className="font-medium">{BRL(0)}</span>
-            )}
+            </div>
           </div>
-          <div className="flex items-center justify-between border-t pt-2">
-            <span className="text-sm text-muted-foreground">Total do pedido</span>
-            <span className="font-display text-2xl font-semibold">{BRL(totalAmount)}</span>
+
+          <div className="space-y-2">
+            <Label>Tipo do pedido</Label>
+            <Select value={orderType} onValueChange={(v) => setOrderType(v as OrderType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pickup">Retirada</SelectItem>
+                <SelectItem value="delivery">Entrega</SelectItem>
+                <SelectItem value="dine_in">Consumo no local</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {orderType === "delivery" && (
+            <div className="space-y-2">
+              <Label htmlFor="address">Endereço de entrega</Label>
+              <Textarea
+                id="address"
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                rows={2}
+                placeholder="Rua, número, bairro, complemento..."
+                className={touched && errors.address ? "border-destructive focus-visible:ring-destructive" : ""}
+              />
+              {touched && <FormErrorMessage>{errors.address}</FormErrorMessage>}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Itens</Label>
+              <Button size="sm" variant="outline" onClick={() => setLines((ls) => [...ls, { product_id: "", quantity: 1 }])}>
+                <Plus className="size-4 mr-1" /> Adicionar item
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {lines.map((l, idx) => (
+                <OrderItemRow
+                  key={idx}
+                  line={l}
+                  products={products ?? []}
+                  canRemove={lines.length > 1}
+                  onChange={(next) => setLines((ls) => ls.map((x, i) => (i === idx ? next : x)))}
+                  onRemove={() => setLines((ls) => ls.filter((_, i) => i !== idx))}
+                />
+              ))}
+            </div>
+            {touched && <FormErrorMessage>{errors.items}</FormErrorMessage>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Observações</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Ex: sem cebola, ponto da massa, entrega sem contato..."
+            />
+          </div>
+
+          <div className="rounded-xl border bg-muted/40 p-4 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal dos itens</span>
+              <span className="font-medium">{BRL(subtotalAmount)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm gap-3">
+              <Label htmlFor="fee" className="text-muted-foreground font-normal">Taxa de entrega</Label>
+              {orderType === "delivery" ? (
+                <div className="w-36">
+                  <MoneyInput
+                    id="fee"
+                    value={deliveryFee}
+                    onChange={setDeliveryFee}
+                    invalid={touched && !!errors.fee}
+                  />
+                </div>
+              ) : (
+                <span className="font-medium">{BRL(0)}</span>
+              )}
+            </div>
+            {touched && <FormErrorMessage>{errors.fee}</FormErrorMessage>}
+            <div className="flex items-center justify-between border-t pt-3">
+              <span className="text-sm font-medium">Total do pedido</span>
+              <span className="font-display text-2xl font-bold text-primary">{BRL(totalAmount)}</span>
+            </div>
           </div>
         </div>
 
-        {validation && (
-          <p className="text-sm text-destructive flex items-center gap-2"><AlertCircle className="size-4" /> {validation}</p>
-        )}
-      </div>
-      <DialogFooter>
-        <Button variant="ghost" onClick={onClose} disabled={create.isPending}>Cancelar</Button>
-        <Button onClick={() => create.mutate()} disabled={create.isPending || !!validation}>
-          {create.isPending ? "Criando…" : "Criar pedido"}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+        <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background sm:justify-end gap-2">
+          <Button variant="ghost" onClick={handleClose} disabled={create.isPending}>Cancelar</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={create.isPending || (touched && hasErrors)}
+            className="min-w-32"
+          >
+            {create.isPending ? "Criando…" : "Criar pedido"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar este pedido?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As informações preenchidas serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmDiscard(false); onClose(); }}>
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -642,9 +744,11 @@ function OrderItemRow({
 
   return (
     <div className="rounded-lg border bg-card p-3 space-y-2">
-      <div className="grid grid-cols-[1fr_90px_auto] gap-2 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_90px_auto] gap-2 items-start">
         <Select value={line.product_id} onValueChange={(v) => onChange({ ...line, product_id: v })}>
-          <SelectTrigger><SelectValue placeholder="Selecione a pizza" /></SelectTrigger>
+          <SelectTrigger className={noPrice ? "border-destructive" : ""}>
+            <SelectValue placeholder="Selecione a pizza" />
+          </SelectTrigger>
           <SelectContent>
             {products.map((p) => (
               <SelectItem key={p.id} value={p.id}>
@@ -658,12 +762,13 @@ function OrderItemRow({
           min={1}
           value={line.quantity}
           onChange={(e) => onChange({ ...line, quantity: Math.max(1, Number(e.target.value) || 1) })}
+          aria-label="Quantidade"
         />
         <Button size="icon" variant="ghost" onClick={onRemove} disabled={!canRemove} title="Remover item">
           <Trash2 className="size-4" />
         </Button>
       </div>
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex items-center justify-between text-xs text-muted-foreground gap-2 flex-wrap">
         <span>
           {product ? <>Preço unitário: <span className="font-medium text-foreground">{BRL(unit)}</span></> : "Nenhuma pizza selecionada"}
         </span>
@@ -671,7 +776,8 @@ function OrderItemRow({
           Subtotal: <span className="font-display font-semibold text-foreground">{BRL(subtotal)}</span>
         </span>
       </div>
-      {noPrice && <p className="text-xs text-destructive">Essa pizza não possui preço cadastrado.</p>}
+      {noPrice && <FormErrorMessage>Essa pizza não possui preço cadastrado.</FormErrorMessage>}
+      {product && line.quantity < 1 && <FormErrorMessage>A quantidade deve ser maior que zero.</FormErrorMessage>}
     </div>
   );
 }
