@@ -419,11 +419,30 @@ function OrderDetailsDialog({ order }: { order: Order }) {
 /* ---------------- New order ---------------- */
 
 type Line = { product_id: string; quantity: number };
+type OrderType = "retirada" | "entrega" | "local";
+
+const orderTypeLabel: Record<OrderType, string> = {
+  retirada: "Retirada",
+  entrega: "Entrega",
+  local: "Consumo no local",
+};
+
+function maskPhone(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : "";
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
 
 function NewOrderDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [orderType, setOrderType] = useState<OrderType>("retirada");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<Line[]>([{ product_id: "", quantity: 1 }]);
 
@@ -441,7 +460,9 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
     const p = productMap.get(l.product_id);
     return p && Number(p.price) > 0 && l.quantity > 0;
   });
-  const total = validLines.reduce((s, l) => s + Number(productMap.get(l.product_id)!.price) * l.quantity, 0);
+  const subtotalAmount = validLines.reduce((s, l) => s + Number(productMap.get(l.product_id)!.price) * l.quantity, 0);
+  const effectiveDeliveryFee = orderType === "entrega" ? Math.max(0, Number(deliveryFee) || 0) : 0;
+  const totalAmount = subtotalAmount + effectiveDeliveryFee;
 
   const validation = (() => {
     if (!lines.some((l) => l.product_id)) return "Selecione uma pizza para continuar.";
@@ -451,17 +472,26 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
       return l.product_id && (!p || Number(p.price) <= 0);
     })) return "Essa pizza não possui preço cadastrado.";
     if (validLines.length === 0) return "Adicione pelo menos um item ao pedido.";
+    if (orderType === "entrega" && !deliveryAddress.trim()) return "Informe o endereço de entrega.";
     return null;
   })();
 
   const create = useMutation({
     mutationFn: async () => {
+      const metaLines = [
+        `Tipo: ${orderTypeLabel[orderType]}`,
+        customerPhone.trim() && `Telefone: ${customerPhone.trim()}`,
+        orderType === "entrega" && deliveryAddress.trim() && `Endereço: ${deliveryAddress.trim()}`,
+        orderType === "entrega" && `Taxa de entrega: ${BRL(effectiveDeliveryFee)}`,
+      ].filter(Boolean).join("\n");
+      const fullNotes = [metaLines, notes.trim()].filter(Boolean).join("\n\n");
+
       const { data: order, error: e1 } = await supabase
         .from("orders")
         .insert({
           customer_name: customerName.trim() || null,
-          notes: notes.trim() || null,
-          total,
+          notes: fullNotes || null,
+          total: totalAmount,
           status: "pendente" as const,
           created_by: user?.id,
         })
@@ -486,16 +516,51 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <DialogContent className="max-w-xl">
+    <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle className="font-display">Novo pedido</DialogTitle>
-        <DialogDescription>Monte o pedido selecionando as pizzas e suas quantidades.</DialogDescription>
+        <DialogDescription>Monte o pedido com cliente, tipo de entrega e itens.</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label>Cliente (opcional)</Label>
-          <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nome do cliente" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label>Cliente (opcional)</Label>
+            <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Nome do cliente" />
+          </div>
+          <div className="space-y-2">
+            <Label>Telefone (opcional)</Label>
+            <Input
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(maskPhone(e.target.value))}
+              placeholder="(00) 00000-0000"
+              inputMode="tel"
+            />
+          </div>
         </div>
+
+        <div className="space-y-2">
+          <Label>Tipo do pedido</Label>
+          <Select value={orderType} onValueChange={(v) => setOrderType(v as OrderType)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="retirada">Retirada</SelectItem>
+              <SelectItem value="entrega">Entrega</SelectItem>
+              <SelectItem value="local">Consumo no local</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {orderType === "entrega" && (
+          <div className="space-y-2">
+            <Label>Endereço de entrega</Label>
+            <Textarea
+              value={deliveryAddress}
+              onChange={(e) => setDeliveryAddress(e.target.value)}
+              rows={2}
+              placeholder="Rua, número, bairro, complemento..."
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>Itens</Label>
@@ -518,12 +583,33 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
 
         <div className="space-y-2">
           <Label>Observações</Label>
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Ex: sem cebola, ponto da massa, entrega..." />
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Ex: sem cebola, ponto da massa..." />
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
-          <span className="text-sm text-muted-foreground">Total do pedido</span>
-          <span className="font-display text-2xl font-semibold">{BRL(total)}</span>
+        <div className="rounded-lg bg-muted p-3 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Subtotal dos itens</span>
+            <span className="font-medium">{BRL(subtotalAmount)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm gap-3">
+            <span className="text-muted-foreground">Taxa de entrega</span>
+            {orderType === "entrega" ? (
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={deliveryFee}
+                onChange={(e) => setDeliveryFee(Math.max(0, Number(e.target.value) || 0))}
+                className="h-8 w-28 text-right"
+              />
+            ) : (
+              <span className="font-medium">{BRL(0)}</span>
+            )}
+          </div>
+          <div className="flex items-center justify-between border-t pt-2">
+            <span className="text-sm text-muted-foreground">Total do pedido</span>
+            <span className="font-display text-2xl font-semibold">{BRL(totalAmount)}</span>
+          </div>
         </div>
 
         {validation && (
