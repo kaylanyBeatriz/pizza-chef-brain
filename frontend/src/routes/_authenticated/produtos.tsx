@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Pencil, Trash2, ChefHat } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,8 @@ type Recipe = { id: string; ingredient_id: string; quantity: number; ingredient?
 
 function ProdutosPage() {
   const qc = useQueryClient();
+  const { roles } = useAuth();
+  const canManage = roles.includes("admin") || roles.includes("gerente");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [recipeFor, setRecipeFor] = useState<Product | null>(null);
@@ -77,10 +80,11 @@ function ProdutosPage() {
         <div className="min-w-0">
           <h1 className="font-display text-2xl md:text-3xl">Pizzas & Receitas</h1>
           <p className="text-sm md:text-base text-muted-foreground">Cadastre o cardápio e a receita de cada pizza para a baixa automática.</p>
+          {!canManage && <p className="mt-1 text-sm text-destructive">Seu perfil possui acesso somente para consulta.</p>}
         </div>
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditing(null)} className="w-full sm:w-auto">
+            <Button onClick={() => setEditing(null)} disabled={!canManage} title={!canManage ? "Acesso permitido apenas para administradores e gerentes" : undefined} className="w-full sm:w-auto">
               <Plus className="size-4 mr-2" /> Nova pizza
             </Button>
           </DialogTrigger>
@@ -114,13 +118,13 @@ function ProdutosPage() {
               <div className="flex items-center justify-between gap-2">
                 <p className="font-display text-lg">{Number(p.price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</p>
                 <div className="flex items-center gap-1">
-                  <Button size="sm" variant="outline" onClick={() => setRecipeFor(p)}>
+                  <Button size="sm" variant="outline" disabled={!canManage} onClick={() => setRecipeFor(p)}>
                     <ChefHat className="size-4 mr-1" /> Receita
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}>
+                  <Button size="icon" variant="ghost" disabled={!canManage} onClick={() => { setEditing(p); setOpen(true); }}>
                     <Pencil className="size-4" />
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Remover ${p.name}?`)) del.mutate(p.id); }}>
+                  <Button size="icon" variant="ghost" disabled={!canManage} onClick={() => { if (confirm(`Remover ${p.name}?`)) del.mutate(p.id); }}>
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
@@ -164,13 +168,13 @@ function ProdutosPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
-                      <Button size="sm" variant="outline" onClick={() => setRecipeFor(p)}>
+                      <Button size="sm" variant="outline" disabled={!canManage} onClick={() => setRecipeFor(p)}>
                         <ChefHat className="size-4 mr-1" /> Receita
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}>
+                      <Button size="icon" variant="ghost" disabled={!canManage} onClick={() => { setEditing(p); setOpen(true); }}>
                         <Pencil className="size-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Remover ${p.name}?`)) del.mutate(p.id); }}>
+                      <Button size="icon" variant="ghost" disabled={!canManage} onClick={() => { if (confirm(`Remover ${p.name}?`)) del.mutate(p.id); }}>
                         <Trash2 className="size-4" />
                       </Button>
                     </TableCell>
@@ -222,6 +226,8 @@ function ProductDialog({ editing, onSubmit, saving }: { editing: Product | null;
 
 function RecipeDialog({ product, onClose }: { product: Product; onClose: () => void }) {
   const qc = useQueryClient();
+  const { roles } = useAuth();
+  const canManage = roles.includes("admin") || roles.includes("gerente");
   const [ingredientId, setIngredientId] = useState("");
   const [qty, setQty] = useState("");
 
@@ -278,7 +284,7 @@ function RecipeDialog({ product, onClose }: { product: Product; onClose: () => v
                 <p className="text-sm font-medium">{r.ingredient?.name}</p>
                 <p className="text-xs text-muted-foreground">{Number(r.quantity)} {r.ingredient?.unit}</p>
               </div>
-              <Button size="icon" variant="ghost" onClick={() => remove.mutate(r.id)}><Trash2 className="size-4" /></Button>
+              <Button size="icon" variant="ghost" disabled={!canManage} onClick={() => remove.mutate(r.id)}><Trash2 className="size-4" /></Button>
             </div>
           ))}
         </div>
@@ -294,7 +300,7 @@ function RecipeDialog({ product, onClose }: { product: Product; onClose: () => v
               </SelectContent>
             </Select>
             <Input type="number" step="0.001" placeholder="Qtd." value={qty} onChange={(e) => setQty(e.target.value)} />
-            <Button onClick={() => add.mutate()} disabled={!ingredientId || !qty}>Adicionar</Button>
+            <Button onClick={() => add.mutate()} disabled={!canManage || !ingredientId || !qty}>Adicionar</Button>
           </div>
         </div>
       </DialogContent>
