@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +36,8 @@ function statusOf(i: Ingredient) {
 
 function EstoquePage() {
   const qc = useQueryClient();
+  const { roles } = useAuth();
+  const canManage = roles.includes("admin") || roles.includes("gerente");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Ingredient | null>(null);
 
@@ -86,10 +89,11 @@ function EstoquePage() {
         <div>
           <h1 className="font-display text-3xl">Estoque de Ingredientes</h1>
           <p className="text-muted-foreground">Controle de quantidade, alertas e fornecedor.</p>
+          {!canManage && <p className="mt-1 text-sm text-destructive">Seu perfil possui acesso somente para consulta.</p>}
         </div>
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditing(null)}>
+            <Button onClick={() => setEditing(null)} disabled={!canManage} title={!canManage ? "Acesso permitido apenas para administradores e gerentes" : undefined}>
               <Plus className="size-4 mr-2" /> Novo ingrediente
             </Button>
           </DialogTrigger>
@@ -143,10 +147,10 @@ function EstoquePage() {
                     <TableCell className="text-muted-foreground">{i.supplier ?? "—"}</TableCell>
                     <TableCell><Badge className={s.cls}>{s.label}</Badge></TableCell>
                     <TableCell className="text-right">
-                      <Button size="icon" variant="ghost" onClick={() => { setEditing(i); setOpen(true); }}>
+                      <Button size="icon" variant="ghost" disabled={!canManage} onClick={() => { setEditing(i); setOpen(true); }}>
                         <Pencil className="size-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Remover ${i.name}?`)) del.mutate(i.id); }}>
+                      <Button size="icon" variant="ghost" disabled={!canManage} onClick={() => { if (confirm(`Remover ${i.name}?`)) del.mutate(i.id); }}>
                         <Trash2 className="size-4" />
                       </Button>
                     </TableCell>
