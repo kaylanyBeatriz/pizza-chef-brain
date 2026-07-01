@@ -1,49 +1,30 @@
 # Big Pizza API
 
-API Laravel do sistema Big Pizza. A implementação segue MVC com regras de negócio isoladas em services para pedidos e estoque.
+API Laravel responsável por autenticação de requisições, autorização, dados e regras de negócio da Big Pizza.
 
-## Requisitos
+## Responsabilidades
 
-- PHP 8.2+
-- Composer
-- SQLite para desenvolvimento local ou outro banco suportado pelo Laravel
+- Validar tokens do Supabase Auth.
+- Aplicar permissões de admin, gerente e operador.
+- CRUD de ingredientes, pizzas e receitas.
+- Criar pedidos de forma transacional.
+- Deduzir estoque ao concluir pedidos.
+- Produzir dados de dashboard, consumo e financeiro.
 
-## Execução local
+## Estoque
 
-```bash
-composer install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate --seed
-php artisan serve
-```
+A conclusão do pedido é processada por `OrderService` e `StockService` dentro de uma transação. Os ingredientes são bloqueados com `FOR UPDATE`, todo o estoque é validado antes da dedução e `stock_deducted` impede repetição.
 
-A API fica disponível em `http://127.0.0.1:8000/api`.
+Não deve existir trigger de dedução no PostgreSQL. Execute a migration SQL de remoção antes de usar esta API.
 
-## Testes e estilo
+## Configuração
+
+Consulte o README da raiz para as variáveis `DB_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` e `FRONTEND_URL`.
+
+## Verificação
 
 ```bash
 php artisan test
 ./vendor/bin/pint --test
+php artisan route:list --path=api
 ```
-
-## Endpoints
-
-- `GET /api/health`
-- `apiResource /api/ingredients`
-- `GET|POST /api/ingredients/{ingredient}/movements`
-- `apiResource /api/products`
-- `GET|POST /api/products/{product}/recipe`
-- `DELETE /api/products/{product}/recipe/{recipeItem}`
-- `GET|POST /api/orders`
-- `GET /api/orders/{order}`
-- `PATCH /api/orders/{order}/status`
-- `GET /api/dashboard`
-- `GET /api/reports/consumption`
-- `GET /api/reports/finance`
-
-Os saldos são bloqueados durante a transação. A conclusão de um pedido valida o estoque, registra uma movimentação por ingrediente e garante que a baixa seja feita uma única vez.
-
-## Acesso inicial
-
-O seeder cria os perfis `admin`, `gerente` e `operador`, além do usuário local `admin@bigpizza.local` com senha `password`. Autenticação e autorização HTTP ainda não estão habilitadas nos endpoints.

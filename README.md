@@ -1,117 +1,84 @@
 # Big Pizza
 
-Monorepo do sistema de controle da Big Pizza.
+Monorepo do sistema de gestão da Big Pizza.
 
-- `frontend/`: aplicação React com TanStack Start e Supabase.
-- `backend/`: API PHP com Laravel.
-
-> Atualmente, o frontend ainda consulta o Supabase diretamente. A integração das telas com a API Laravel será feita em uma etapa posterior.
+- `frontend/`: React com TanStack Start. Usa Supabase apenas para autenticação.
+- `backend/`: API Laravel responsável por todas as consultas, permissões e regras de negócio.
+- Supabase PostgreSQL: armazenamento dos dados do sistema.
 
 ## Requisitos
 
-- Node.js 20.19 ou superior
+- Node.js 20.19+
 - npm
-- PHP 8.3 ou superior
+- PHP 8.3+
 - Composer
-- Projeto Supabase configurado para autenticação e dados do frontend
+- Projeto Supabase e senha do banco PostgreSQL
 
-## Clonar o projeto
+## Supabase
 
-```bash
-git clone https://github.com/kaylanyBeatriz/pizza-chef-brain.git
-cd pizza-chef-brain
-```
+Antes de testar, execute as migrations SQL pendentes no SQL Editor. Em especial, remova a implementação antiga de estoque no banco usando:
 
-## Frontend
+`frontend/supabase/migrations/20260630000600_remove_order_stock_trigger.sql`
 
-Entre no diretório e instale as dependências:
-
-```bash
-cd frontend
-npm ci
-```
-
-Crie o arquivo `frontend/.env`:
-
-```env
-SUPABASE_PROJECT_ID=seu-project-id
-SUPABASE_PUBLISHABLE_KEY=sua-chave-publica
-SUPABASE_URL=https://seu-projeto.supabase.co
-
-VITE_SUPABASE_PROJECT_ID=seu-project-id
-VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-publica
-VITE_SUPABASE_URL=https://seu-projeto.supabase.co
-```
-
-Use apenas a chave pública no frontend. Não coloque a chave `service_role` em variáveis expostas pelo Vite.
-
-Inicie o servidor:
-
-```bash
-npm run dev
-```
-
-O Vite informará o endereço local, normalmente `http://localhost:5173`.
-
-### Migrations do Supabase
-
-Para aplicar as migrations em um projeto com acesso autorizado:
-
-```bash
-supabase login
-supabase link --project-ref bagskxysamopkkzuqxav
-supabase db push
-```
+A baixa de estoque é executada exclusivamente pelo Laravel.
 
 ## Backend
-
-Em outro terminal:
 
 ```bash
 cd backend
 composer install
 cp .env.example .env
 php artisan key:generate
-touch database/database.sqlite
-php artisan migrate --seed
-php artisan serve
 ```
 
-A API ficará disponível em:
+Preencha o `backend/.env`:
 
-- API: `http://127.0.0.1:8000/api`
-- Health check: `http://127.0.0.1:8000/api/health`
+```env
+APP_URL=http://localhost:8000
+FRONTEND_URL=http://localhost:8080,http://localhost:5173
 
-O seeder local cria:
+DB_CONNECTION=pgsql
+DB_URL=postgresql://USUARIO:SENHA@HOST:PORTA/postgres
+DB_SSLMODE=require
 
-- E-mail: `admin@bigpizza.local`
-- Senha: `password`
+SUPABASE_URL=https://SEU_PROJECT_REF.supabase.co
+SUPABASE_PUBLISHABLE_KEY=SUA_CHAVE_PUBLICA
+```
 
-Esse usuário pertence ao Laravel e ainda não autentica o frontend, que continua usando o Supabase Auth.
+A string PostgreSQL está no painel Supabase em **Connect > Connection string**. Não use a chave pública como senha do banco.
+
+Inicie a API:
+
+```bash
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+Teste o health check em `http://127.0.0.1:8000/api/health`.
+
+## Frontend
+
+```bash
+cd frontend
+npm ci
+cp .env.example .env
+npm run dev -- --port 8080
+```
+
+Configure as variáveis Supabase e mantenha:
+
+```env
+VITE_API_URL=http://localhost:8000/api
+```
+
+O frontend envia o token do Supabase Auth no cabeçalho `Authorization`. Nenhuma tabela é acessada diretamente pelo navegador.
 
 ## Testes
-
-Backend:
 
 ```bash
 cd backend
 php artisan test
 ./vendor/bin/pint --test
-```
 
-Frontend:
-
-```bash
-cd frontend
-npx tsc --noEmit
+cd ../frontend
 npm run build
-```
-
-## Estrutura
-
-```text
-pizza-chef-brain/
-|-- backend/   API Laravel, regras de pedidos e estoque
-|-- frontend/  Interface React, autenticação e acesso atual ao Supabase
-`-- README.md
 ```
