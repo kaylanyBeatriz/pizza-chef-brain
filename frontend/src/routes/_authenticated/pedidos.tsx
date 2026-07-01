@@ -86,7 +86,7 @@ function PedidosPage() {
         id: String(order.id),
         order_number: Number(order.id),
         total: Number(order.total_amount),
-        started_at: order.status === "preparing" ? order.updated_at : null,
+        started_at: order.preparing_at,
         order_items: (order.order_items ?? []).map((item) => ({
           ...item,
           id: String(item.id),
@@ -98,7 +98,35 @@ function PedidosPage() {
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
       setPendingId(id);
-      const { error } = await supabase.from("orders").update({ status }).eq("id", id);
+      const now = new Date().toISOString();
+      const timestamps: {
+        preparing_at?: string | null;
+        completed_at?: string | null;
+        cancelled_at?: string | null;
+      } = {
+        ...(status === "pending" && {
+          preparing_at: null,
+          completed_at: null,
+          cancelled_at: null,
+        }),
+        ...(status === "preparing" && {
+          preparing_at: now,
+          completed_at: null,
+          cancelled_at: null,
+        }),
+        ...(status === "completed" && {
+          completed_at: now,
+          cancelled_at: null,
+        }),
+        ...(status === "cancelled" && {
+          completed_at: null,
+          cancelled_at: now,
+        }),
+      };
+      const { error } = await supabase
+        .from("orders")
+        .update({ status, ...timestamps })
+        .eq("id", id);
       if (error) throw error;
       return status;
     },
@@ -119,26 +147,32 @@ function PedidosPage() {
   });
 
   const todayOrders = useMemo(() => (orders ?? []).filter((o) => isToday(o.created_at)), [orders]);
+  const completedToday = useMemo(
+    () =>
+      (orders ?? []).filter(
+        (o) => o.status === "completed" && o.completed_at !== null && isToday(o.completed_at),
+      ),
+    [orders],
+  );
   const grouped = useMemo(() => {
     const g: Record<OrderStatus, Order[]> = { pending: [], preparing: [], completed: [], cancelled: [] };
     (orders ?? []).forEach((o) => {
-      if (o.status === "completed" && !isToday(o.created_at)) return;
+      if (o.status === "completed" && (!o.completed_at || !isToday(o.completed_at))) return;
       g[o.status].push(o);
     });
     return g;
   }, [orders]);
 
   const summary = useMemo(() => {
-    const concluidosHoje = todayOrders.filter((o) => o.status === "completed");
     const emAndamento = (orders ?? []).filter((o) => o.status === "pending" || o.status === "preparing");
-    const faturamento = concluidosHoje.reduce((s, o) => s + Number(o.total), 0);
+    const faturamento = completedToday.reduce((s, o) => s + Number(o.total), 0);
     return {
       total: todayOrders.length,
       emAndamento: emAndamento.length,
-      concluidos: concluidosHoje.length,
+      concluidos: completedToday.length,
       faturamento,
     };
-  }, [orders, todayOrders]);
+  }, [orders, todayOrders, completedToday]);
 
   return (
     <div className="space-y-6">

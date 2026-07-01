@@ -110,6 +110,7 @@ export type Database = {
           id: string
           notes: string | null
           order_type: string
+          preparing_at: string | null
           status: Database["public"]["Enums"]["order_status"]
           stock_deducted: boolean
           total_amount: number
@@ -126,6 +127,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_type?: string
+          preparing_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           stock_deducted?: boolean
           total_amount?: number
@@ -142,6 +144,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_type?: string
+          preparing_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           stock_deducted?: boolean
           total_amount?: number
