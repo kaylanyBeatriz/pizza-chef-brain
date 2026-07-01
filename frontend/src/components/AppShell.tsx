@@ -6,6 +6,7 @@ import {
   Flame,
   ShoppingCart,
   Pizza,
+  Users,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const nav = [
   { to: "/estoque", label: "Ingredientes", icon: Carrot },
   { to: "/consumo", label: "Consumo", icon: Flame },
   { to: "/produtos", label: "Pizzas & Receitas", icon: Pizza },
+  { to: "/usuarios", label: "Usuários", icon: Users },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -29,7 +31,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { user, roles, signOut } = useAuth();
   const canAccessFinance = roles.includes("admin") || roles.includes("gerente");
-  const visibleNav = nav.filter((item) => item.to !== "/financeiro" || canAccessFinance);
+  const canAccessUsers = roles.includes("admin");
+  const visibleNav = nav.filter((item) => {
+    if (item.to === "/financeiro") return canAccessFinance;
+    if (item.to === "/usuarios") return canAccessUsers;
+    return true;
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
