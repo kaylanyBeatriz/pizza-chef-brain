@@ -28,12 +28,28 @@ function LoginPage() {
     e.preventDefault();
     setLoading(true);
     if (mode === "login") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      setLoading(false);
+      await supabase.auth.signOut({ scope: "local" });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
+        setLoading(false);
         toast.error(error.message === "Invalid login credentials" ? "Credenciais inválidas" : error.message);
         return;
       }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", data.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut({ scope: "local" });
+        setLoading(false);
+        toast.error("Cadastro incompleto. Procure um administrador.");
+        return;
+      }
+
+      setLoading(false);
       toast.success("Bem-vindo!");
       navigate({ to: "/dashboard" });
     } else {

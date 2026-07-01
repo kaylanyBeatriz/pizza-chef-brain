@@ -27,7 +27,9 @@ const nav = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, roles, signOut } = useAuth();
+  const canAccessFinance = roles.includes("admin") || roles.includes("gerente");
+  const visibleNav = nav.filter((item) => item.to !== "/financeiro" || canAccessFinance);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -69,7 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Nav */}
         <nav className="flex-1 px-5 pt-4 space-y-2">
-          {nav.map((item) => {
+          {visibleNav.map((item) => {
             const active = location.pathname.startsWith(item.to);
             const Icon = item.icon;
             return (
@@ -132,8 +134,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-3 pl-3 md:pl-4 border-l border-foreground/30 shrink-0">
             <div className="text-right leading-tight">
-              <p className="text-xs text-muted-foreground truncate">
-                Pizzaria Big Pizza
+              <p className="max-w-52 truncate text-xs text-muted-foreground">
+                {user?.email ?? "Pizzaria Big Pizza"}
               </p>
             </div>
           </div>
