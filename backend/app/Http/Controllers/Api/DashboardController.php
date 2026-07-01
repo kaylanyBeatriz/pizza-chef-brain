@@ -106,16 +106,34 @@ class DashboardController extends Controller
 
         $forecast = $ingredients->map(function (Ingredient $ingredient) use ($consumption, $days): array {
             $average = (float) ($consumption[$ingredient->id] ?? 0) / $days;
+            $stock = (float) $ingredient->current_stock;
+            $minimum = (float) $ingredient->minimum_stock;
+            $status = null;
+            $priority = 2;
+
+            if ($stock <= $minimum * 0.5) {
+                $status = 'critical';
+                $priority = 0;
+            } elseif ($stock <= $minimum) {
+                $status = 'low';
+                $priority = 1;
+            }
 
             return [
                 'name' => $ingredient->name,
                 'unit' => $ingredient->unit,
-                'stock' => (float) $ingredient->current_stock,
+                'stock' => $stock,
                 'avgDay' => $average,
-                'diasRest' => $average > 0 ? (float) $ingredient->current_stock / $average : INF,
+                'diasRest' => $average > 0 ? $stock / $average : null,
+                'min' => $minimum,
+                'status' => $status,
+                'priority' => $priority,
             ];
-        })->filter(fn (array $item) => $item['avgDay'] > 0 && $item['diasRest'] < 14)
-            ->sortBy('diasRest')->take(6)->values();
+        })->filter(fn (array $item) => $item['status'] !== null || ($item['avgDay'] > 0 && $item['diasRest'] < 14))
+            ->sort(function (array $a, array $b): int {
+                return [$a['priority'], $a['diasRest'], $a['name']] <=> [$b['priority'], $b['diasRest'], $b['name']];
+            })
+            ->take(6)->values();
 
         return response()->json(['topConsumo' => $top, 'peakHours' => $peakHours, 'forecast' => $forecast]);
     }

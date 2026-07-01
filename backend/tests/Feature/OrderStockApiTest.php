@@ -73,6 +73,25 @@ class OrderStockApiTest extends TestCase
         ]);
     }
 
+    public function test_consumption_forecast_includes_low_and_critical_stock_items(): void
+    {
+        Ingredient::query()->create([
+            'name' => 'Tomate', 'unit' => 'kg', 'current_stock' => 1.5,
+            'minimum_stock' => 2, 'unit_cost' => 5,
+        ]);
+        Ingredient::query()->create([
+            'name' => 'Queijo', 'unit' => 'kg', 'current_stock' => 0.5,
+            'minimum_stock' => 2, 'unit_cost' => 25,
+        ]);
+
+        $response = $this->getJson('/api/reports/consumption')->assertOk();
+        $response->assertJsonCount(2, 'forecast');
+        $response->assertJsonPath('forecast.0.name', 'Queijo');
+        $response->assertJsonPath('forecast.0.status', 'critical');
+        $response->assertJsonPath('forecast.1.name', 'Tomate');
+        $response->assertJsonPath('forecast.1.status', 'low');
+    }
+
     /** @return array{Ingredient, Pizza} */
     private function createRecipe(float $stock, float $recipeQuantity): array
     {

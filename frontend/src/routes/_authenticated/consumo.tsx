@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/consumo")({
 type ConsumptionReport = {
   topConsumo: Array<{ name: string; unit: string; qty: number; stock: number; min: number }>;
   peakHours: Array<{ hora: string; pedidos: number }>;
-  forecast: Array<{ name: string; unit: string; stock: number; avgDay: number; diasRest: number }>;
+  forecast: Array<{ name: string; unit: string; stock: number; avgDay: number; diasRest: number | null; status: 'low' | 'critical' | null }>;
 };
 
 async function fetchConsumo(): Promise<ConsumptionReport> {
@@ -102,7 +102,9 @@ function ConsumoPage() {
               </p>
             ) : (
               data!.forecast.map((f) => {
-                const critical = f.diasRest <= 3;
+                const critical = f.status === 'critical';
+                const low = f.status === 'low';
+                const label = critical ? 'crítico' : low ? 'baixo' : f.diasRest != null ? '~' + Math.max(0, Math.floor(f.diasRest)) + ' dias' : '—';
                 return (
                   <div key={f.name} className="flex items-center justify-between text-sm border-b border-border/60 pb-2 last:border-0">
                     <div>
@@ -111,8 +113,11 @@ function ConsumoPage() {
                         {f.stock.toFixed(2)} {f.unit} • consumo {f.avgDay.toFixed(2)} {f.unit}/dia
                       </p>
                     </div>
-                    <Badge variant={critical ? "destructive" : "secondary"} className={critical ? "" : "bg-warning text-warning-foreground"}>
-                      ~{Math.max(0, Math.floor(f.diasRest))} dias
+                    <Badge
+                      variant={critical ? 'destructive' : 'secondary'}
+                      className={critical ? '' : low ? 'bg-warning text-warning-foreground' : ''}
+                    >
+                      {label}
                     </Badge>
                   </div>
                 );
