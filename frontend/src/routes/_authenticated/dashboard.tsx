@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Pizza, DollarSign, ShoppingBag, AlertTriangle, TrendingUp } from "lucide-react";
@@ -24,68 +24,7 @@ interface Stats {
 }
 
 async function fetchStats(): Promise<Stats> {
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const yearAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-
-  const [todayRes, monthRes, lowRes, itemsRes, monthlyRes] = await Promise.all([
-    supabase.from("orders").select("total_amount").gte("created_at", todayStart).neq("status", "cancelled"),
-    supabase.from("orders").select("total_amount").gte("created_at", monthStart).neq("status", "cancelled"),
-    supabase.from("ingredients").select("id,name,current_stock,minimum_stock,unit"),
-    supabase
-      .from("order_items")
-      .select("quantity, product:pizzas(name), order:orders!inner(status,created_at)")
-      .gte("order.created_at", monthStart)
-      .neq("order.status", "cancelled"),
-    supabase
-      .from("orders")
-      .select("total_amount,created_at")
-      .gte("created_at", yearAgo.toISOString())
-      .neq("status", "cancelled"),
-  ]);
-
-  const lowStock = (lowRes.data ?? []).filter((i) => i.current_stock <= i.minimum_stock);
-
-  const counts = new Map<string, number>();
-  (itemsRes.data ?? []).forEach((row: any) => {
-    const n = row.product?.name ?? "—";
-    counts.set(n, (counts.get(n) ?? 0) + row.quantity);
-  });
-  const topPizzas = Array.from(counts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([name, quantidade]) => ({ name, quantidade }));
-
-  // last 12 months revenue
-  const byMonth = new Map<string, number>();
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    byMonth.set(key, 0);
-  }
-  (monthlyRes.data ?? []).forEach((o) => {
-    const key = o.created_at.slice(0, 7);
-    if (byMonth.has(key)) byMonth.set(key, (byMonth.get(key) ?? 0) + Number(o.total_amount));
-  });
-  const monthly = Array.from(byMonth.entries()).map(([k, v]) => {
-    const [y, m] = k.split("-");
-    const d = new Date(Number(y), Number(m) - 1, 1);
-    return {
-      mes: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
-      vendas: v,
-    };
-  });
-
-  return {
-    ordersToday: todayRes.data?.length ?? 0,
-    revenueToday: (todayRes.data ?? []).reduce((s, o) => s + Number(o.total_amount), 0),
-    ordersMonth: monthRes.data?.length ?? 0,
-    revenueMonth: (monthRes.data ?? []).reduce((s, o) => s + Number(o.total_amount), 0),
-    lowStock,
-    topPizzas,
-    monthly,
-  };
+  return api.get<Stats>("/dashboard");
 }
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

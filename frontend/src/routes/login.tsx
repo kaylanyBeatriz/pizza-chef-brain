@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { User, KeyRound, LogIn, UserPlus, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,16 +37,28 @@ function LoginPage() {
         return;
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("id", data.user.id)
-        .single();
-
-      if (profileError || !profile) {
+      const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+      const apiUrl = rawApiUrl.endsWith("/") ? rawApiUrl.slice(0, -1) : rawApiUrl;
+      const session = data.session || (await supabase.auth.getSession()).data.session;
+      if (!session?.access_token) {
         await supabase.auth.signOut({ scope: "local" });
         setLoading(false);
-        toast.error("Cadastro incompleto. Procure um administrador.");
+        toast.error("Não foi possível validar sua sessão.");
+        return;
+      }
+
+      const response = await fetch(apiUrl + "/me", {
+        headers: {
+          Accept: "application/json",
+          Authorization: "Bearer " + session.access_token,
+        },
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        await supabase.auth.signOut({ scope: "local" });
+        setLoading(false);
+        toast.error(body && body.message ? body.message : "Não foi possível validar seu acesso.");
         return;
       }
 

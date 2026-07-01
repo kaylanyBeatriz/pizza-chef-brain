@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Plus, Pencil, Trash2, ChefHat } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api, type ApiCollection } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,20 +41,18 @@ function ProdutosPage() {
   const { data: products, isLoading } = useQuery({
     queryKey: ["pizzas"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("pizzas").select("*").order("name");
-      if (error) throw error;
-      return data as Product[];
+      const response = await api.get<ApiCollection<Product>>("/pizzas?per_page=200");
+      return response.data;
     },
   });
 
   const upsert = useMutation({
     mutationFn: async (p: Partial<Product> & { id?: string }) => {
-      if (p.id) {
-        const { error } = await supabase.from("pizzas").update(p).eq("id", p.id);
-        if (error) throw error;
+      const { id, ...payload } = p;
+      if (id) {
+        await api.put(`/pizzas/${id}`, payload);
       } else {
-        const { error } = await supabase.from("pizzas").insert(p as any);
-        if (error) throw error;
+        await api.post("/pizzas", payload);
       }
     },
     onSuccess: () => {
@@ -67,8 +65,7 @@ function ProdutosPage() {
 
   const del = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("pizzas").delete().eq("id", id);
-      if (error) throw error;
+      await api.delete(`/pizzas/${id}`);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["pizzas"] }); toast.success("Removida"); },
     onError: (e: any) => toast.error(e.message),
@@ -234,28 +231,25 @@ function RecipeDialog({ product, onClose }: { product: Product; onClose: () => v
   const { data: ingredients } = useQuery({
     queryKey: ["ingredients-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("ingredients").select("id,name,unit").order("name");
-      return data ?? [];
+      const response = await api.get<ApiCollection<{ id: string; name: string; unit: string }>>("/ingredients?per_page=200");
+      return response.data;
     },
   });
 
   const { data: recipe } = useQuery({
     queryKey: ["recipe", product.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("pizza_ingredients")
-        .select("id, ingredient_id, quantity, ingredient:ingredients(name, unit)")
-        .eq("pizza_id", product.id);
-      return (data ?? []) as unknown as Recipe[];
+      const response = await api.get<ApiCollection<Recipe>>(`/pizzas/${product.id}/recipe`);
+      return response.data;
     },
   });
 
   const add = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("pizza_ingredients").insert({
-        pizza_id: product.id, ingredient_id: ingredientId, quantity: Number(qty),
+      await api.post(`/pizzas/${product.id}/recipe`, {
+        ingredient_id: ingredientId,
+        quantity: Number(qty),
       });
-      if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["recipe", product.id] }); setIngredientId(""); setQty(""); toast.success("Ingrediente adicionado"); },
     onError: (e: any) => toast.error(e.message),
@@ -263,8 +257,7 @@ function RecipeDialog({ product, onClose }: { product: Product; onClose: () => v
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("pizza_ingredients").delete().eq("id", id);
-      if (error) throw error;
+      await api.delete(`/pizzas/${product.id}/recipe/${id}`);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["recipe", product.id] }); },
   });

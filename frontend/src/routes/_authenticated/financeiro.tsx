@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api, type CurrentUser } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, TrendingUp, TrendingDown, Receipt } from "lucide-react";
 import {
@@ -9,65 +9,31 @@ import {
 
 export const Route = createFileRoute("/_authenticated/financeiro")({
   beforeLoad: async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw redirect({ to: "/login" });
-
-    const { data: account } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-    const canAccess = account?.role === "admin" || account?.role === "gerente";
-
-    if (!canAccess) throw redirect({ to: "/dashboard" });
+    try {
+      const account = await api.get<CurrentUser>("/me");
+      if (account.role !== "admin" && account.role !== "gerente") {
+        throw redirect({ to: "/dashboard" });
+      }
+    } catch (error) {
+      if (error instanceof Response) throw error;
+      throw redirect({ to: "/dashboard" });
+    }
   },
   component: FinanceiroPage,
 });
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-async function fetchFinance() {
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
-  const thirtyDays = new Date(now.getTime() - 29 * 86400000);
-  thirtyDays.setHours(0, 0, 0, 0);
+type FinanceReport = {
+  revenueMonth: number;
+  revenuePrev: number;
+  ticket: number;
+  estoqueAtivo: number;
+  daily: Array<{ dia: string; receita: number }>;
+};
 
-  const [monthRes, prevRes, dailyRes, ingRes] = await Promise.all([
-    supabase.from("orders").select("total_amount,created_at").gte("created_at", monthStart).neq("status", "cancelled"),
-    supabase.from("orders").select("total_amount").gte("created_at", prevMonthStart).lt("created_at", monthStart).neq("status", "cancelled"),
-    supabase.from("orders").select("total_amount,created_at").gte("created_at", thirtyDays.toISOString()).neq("status", "cancelled"),
-    supabase.from("ingredients").select("current_stock,unit_cost"),
-  ]);
-
-  const revenueMonth = (monthRes.data ?? []).reduce((s, o) => s + Number(o.total_amount), 0);
-  const revenuePrev = (prevRes.data ?? []).reduce((s, o) => s + Number(o.total_amount), 0);
-  const ticket = (monthRes.data?.length ?? 0) > 0 ? revenueMonth / monthRes.data!.length : 0;
-  const estoqueAtivo = (ingRes.data ?? []).reduce(
-    (s, i) => s + Number(i.current_stock) * Number(i.unit_cost),
-    0
-  );
-
-  const byDay = new Map<string, number>();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 86400000);
-    byDay.set(d.toISOString().slice(0, 10), 0);
-  }
-  (dailyRes.data ?? []).forEach((o) => {
-    const k = o.created_at.slice(0, 10);
-    if (byDay.has(k)) byDay.set(k, (byDay.get(k) ?? 0) + Number(o.total_amount));
-  });
-
-  return {
-    revenueMonth,
-    revenuePrev,
-    ticket,
-    estoqueAtivo,
-    daily: Array.from(byDay.entries()).map(([k, v]) => ({
-      dia: new Date(k).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
-      receita: v,
-    })),
-  };
+async function fetchFinance(): Promise<FinanceReport> {
+  return api.get<FinanceReport>("/reports/finance");
 }
 
 function FinanceiroPage() {

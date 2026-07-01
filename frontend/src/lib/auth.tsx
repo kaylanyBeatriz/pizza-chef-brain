@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { api, type CurrentUser } from "@/lib/api";
 
 export type AppRole = "admin" | "gerente" | "operador";
 
@@ -24,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s);
       if (s?.user) {
         // Defer DB call to avoid deadlocks
-        setTimeout(() => loadRoles(s.user.id), 0);
+        setTimeout(() => loadRoles(), 0);
       } else {
         setRoles([]);
       }
@@ -32,16 +33,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (data.session?.user) loadRoles(data.session.user.id);
+      if (data.session?.user) loadRoles();
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  async function loadRoles(userId: string) {
-    const { data } = await supabase.from("users").select("role").eq("id", userId).maybeSingle();
-    setRoles(data?.role ? [data.role as AppRole] : []);
+  async function loadRoles() {
+    try {
+      const account = await api.get<CurrentUser>("/me");
+      setRoles([account.role as AppRole]);
+    } catch {
+      setRoles([]);
+    }
   }
 
   return (

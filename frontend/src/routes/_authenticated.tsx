@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, Outlet } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
+import { api, type CurrentUser } from "@/lib/api";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -10,13 +11,9 @@ export const Route = createFileRoute("/_authenticated")({
       throw redirect({ to: "/login" });
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("id", data.user.id)
-      .single();
-
-    if (profileError || !profile) {
+    try {
+      await api.get<CurrentUser>("/me");
+    } catch {
       await supabase.auth.signOut({ scope: "local" });
       throw redirect({ to: "/login" });
     }

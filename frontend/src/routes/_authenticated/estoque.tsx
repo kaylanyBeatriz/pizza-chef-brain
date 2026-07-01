@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api, type ApiCollection } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,20 +44,18 @@ function EstoquePage() {
   const { data, isLoading } = useQuery({
     queryKey: ["ingredients"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("ingredients").select("*").order("name");
-      if (error) throw error;
-      return data as Ingredient[];
+      const response = await api.get<ApiCollection<Ingredient>>("/ingredients?per_page=200");
+      return response.data;
     },
   });
 
   const upsert = useMutation({
     mutationFn: async (i: Partial<Ingredient> & { id?: string }) => {
-      if (i.id) {
-        const { error } = await supabase.from("ingredients").update(i).eq("id", i.id);
-        if (error) throw error;
+      const { id, ...payload } = i;
+      if (id) {
+        await api.put(`/ingredients/${id}`, payload);
       } else {
-        const { error } = await supabase.from("ingredients").insert(i as any);
-        if (error) throw error;
+        await api.post("/ingredients", payload);
       }
     },
     onSuccess: () => {
@@ -71,8 +69,7 @@ function EstoquePage() {
 
   const del = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("ingredients").delete().eq("id", id);
-      if (error) throw error;
+      await api.delete(`/ingredients/${id}`);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ingredients"] });

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Flame, Clock, AlertTriangle } from "lucide-react";
@@ -12,78 +12,14 @@ export const Route = createFileRoute("/_authenticated/consumo")({
   component: ConsumoPage,
 });
 
-async function fetchConsumo() {
-  const now = new Date();
-  const start = new Date(now.getTime() - 29 * 86400000);
-  start.setHours(0, 0, 0, 0);
+type ConsumptionReport = {
+  topConsumo: Array<{ name: string; unit: string; qty: number; stock: number; min: number }>;
+  peakHours: Array<{ hora: string; pedidos: number }>;
+  forecast: Array<{ name: string; unit: string; stock: number; avgDay: number; diasRest: number }>;
+};
 
-  const [itemsRes, ordersRes, ingRes] = await Promise.all([
-    supabase
-      .from("order_items")
-      .select("quantity, product:pizzas(name,recipe:pizza_ingredients(ingredient_id,quantity)), order:orders!inner(created_at,status)")
-      .gte("order.created_at", start.toISOString())
-      .neq("order.status", "cancelled"),
-    supabase
-      .from("orders")
-      .select("created_at")
-      .gte("created_at", start.toISOString())
-      .neq("status", "cancelled"),
-    supabase.from("ingredients").select("id,name,unit,current_stock,minimum_stock"),
-  ]);
-
-  // consumption per ingredient (qty * recipe qty)
-  const consumption = new Map<string, number>();
-  (itemsRes.data ?? []).forEach((row: any) => {
-    const recipes = row.product?.recipe ?? [];
-    recipes.forEach((r: any) => {
-      const total = Number(r.quantity) * Number(row.quantity);
-      consumption.set(r.ingredient_id, (consumption.get(r.ingredient_id) ?? 0) + total);
-    });
-  });
-
-  const ingredients = ingRes.data ?? [];
-  const topConsumo = ingredients
-    .map((i) => ({
-      name: i.name,
-      unit: i.unit,
-      qty: consumption.get(i.id) ?? 0,
-      stock: Number(i.current_stock),
-      min: Number(i.minimum_stock),
-    }))
-    .filter((i) => i.qty > 0)
-    .sort((a, b) => b.qty - a.qty)
-    .slice(0, 8);
-
-  // peak hours
-  const byHour = new Array(24).fill(0);
-  (ordersRes.data ?? []).forEach((o) => {
-    const h = new Date(o.created_at).getHours();
-    byHour[h]++;
-  });
-  const peakHours = byHour
-    .map((count, hour) => ({ hora: `${String(hour).padStart(2, "0")}h`, pedidos: count }))
-    .filter((h) => h.pedidos > 0);
-
-  // forecast — items running out (avg daily consumption -> days remaining)
-  const days = 30;
-  const forecast = ingredients
-    .map((i) => {
-      const used = consumption.get(i.id) ?? 0;
-      const avgDay = used / days;
-      const diasRest = avgDay > 0 ? Number(i.current_stock) / avgDay : Infinity;
-      return {
-        name: i.name,
-        unit: i.unit,
-        stock: Number(i.current_stock),
-        avgDay,
-        diasRest,
-      };
-    })
-    .filter((i) => i.avgDay > 0 && i.diasRest < 14)
-    .sort((a, b) => a.diasRest - b.diasRest)
-    .slice(0, 6);
-
-  return { topConsumo, peakHours, forecast };
+async function fetchConsumo(): Promise<ConsumptionReport> {
+  return api.get<ConsumptionReport>("/reports/consumption");
 }
 
 function ConsumoPage() {

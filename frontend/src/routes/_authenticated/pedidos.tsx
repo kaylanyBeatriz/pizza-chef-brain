@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { Plus, Trash2, Check, X, Clock, ChefHat, AlertCircle, ArrowLeft, Eye, Receipt } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { api, type ApiCollection } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,12 +19,18 @@ export const Route = createFileRoute("/_authenticated/pedidos")({
 });
 
 type OrderStatus = "pending" | "preparing" | "completed" | "cancelled";
+type OrderType = "pickup" | "delivery" | "dine_in";
 type OrderItem = { id: string; quantity: number; unit_price: number; product: { name: string } | null };
 type Order = {
   id: string;
   order_number: number;
   status: OrderStatus;
   customer_name: string | null;
+  customer_phone: string | null;
+  order_type: OrderType;
+  delivery_address: string | null;
+  subtotal_amount: number;
+  delivery_fee: number;
   total: number;
   notes: string | null;
   created_at: string;
@@ -32,6 +38,7 @@ type Order = {
   completed_at: string | null;
   cancelled_at: string | null;
   stock_deducted: boolean;
+  stock_deducted_at: string | null;
   order_items: OrderItem[];
 };
 
@@ -75,59 +82,15 @@ function PedidosPage() {
   const { data: orders, isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*, order_items(id, quantity, unit_price, product:pizzas(name))")
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return (data ?? []).map((order) => ({
-        ...order,
-        id: String(order.id),
-        order_number: Number(order.id),
-        total: Number(order.total_amount),
-        started_at: order.preparing_at,
-        order_items: (order.order_items ?? []).map((item) => ({
-          ...item,
-          id: String(item.id),
-        })),
-      })) as unknown as Order[];
+      const response = await api.get<ApiCollection<Order>>("/orders?per_page=200");
+      return response.data;
     },
   });
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
       setPendingId(id);
-      const now = new Date().toISOString();
-      const timestamps: {
-        preparing_at?: string | null;
-        completed_at?: string | null;
-        cancelled_at?: string | null;
-      } = {
-        ...(status === "pending" && {
-          preparing_at: null,
-          completed_at: null,
-          cancelled_at: null,
-        }),
-        ...(status === "preparing" && {
-          preparing_at: now,
-          completed_at: null,
-          cancelled_at: null,
-        }),
-        ...(status === "completed" && {
-          completed_at: now,
-          cancelled_at: null,
-        }),
-        ...(status === "cancelled" && {
-          completed_at: null,
-          cancelled_at: now,
-        }),
-      };
-      const { error } = await supabase
-        .from("orders")
-        .update({ status, ...timestamps })
-        .eq("id", id);
-      if (error) throw error;
+      await api.patch(`/orders/${id}/status`, { status });
       return status;
     },
     onSettled: () => setPendingId(null),
@@ -135,6 +98,8 @@ function PedidosPage() {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       qc.invalidateQueries({ queryKey: ["ingredients"] });
+      qc.invalidateQueries({ queryKey: ["consumo"] });
+      qc.invalidateQueries({ queryKey: ["financeiro"] });
       const msg: Record<OrderStatus, string> = {
         pending: "Pedido voltou para pendente",
         preparing: "Preparo iniciado",
@@ -442,17 +407,36 @@ function OrderDetailsDialog({ order }: { order: Order }) {
             <p className="text-sm">{order.notes}</p>
           </div>
         )}
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div><p className="text-xs text-muted-foreground">Tipo</p>{orderTypeLabel[order.order_type]}</div>
+          <div><p className="text-xs text-muted-foreground">Telefone</p>{order.customer_phone || "—"}</div>
+          {order.delivery_address && (
+            <div className="col-span-2">
+              <p className="text-xs text-muted-foreground">Endereço</p>
+              {order.delivery_address}
+            </div>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-2 text-sm bg-muted rounded-lg p-3">
           <div><p className="text-xs text-muted-foreground">Criado às</p>{time(order.created_at)}</div>
           <div><p className="text-xs text-muted-foreground">Preparo às</p>{time(order.started_at)}</div>
           <div><p className="text-xs text-muted-foreground">Concluído às</p>{time(order.completed_at)}</div>
           <div><p className="text-xs text-muted-foreground">Cancelado às</p>{time(order.cancelled_at)}</div>
+          <div><p className="text-xs text-muted-foreground">Estoque baixado às</p>{time(order.stock_deducted_at)}</div>
           <div><p className="text-xs text-muted-foreground">Tempo de preparo</p>{prepMin != null ? `${prepMin} min` : "—"}</div>
           <div><p className="text-xs text-muted-foreground">Tempo total</p>{totalMin != null ? `${totalMin} min` : "—"}</div>
         </div>
-        <div className="flex items-center justify-between border-t pt-3">
-          <Badge className={statusStyle[order.status]}>{statusLabel[order.status]}</Badge>
-          <span className="font-display text-xl font-semibold">{BRL(order.total)}</span>
+        <div className="space-y-1 border-t pt-3 text-sm">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Subtotal</span><span>{BRL(order.subtotal_amount)}</span>
+          </div>
+          <div className="flex justify-between text-muted-foreground">
+            <span>Taxa de entrega</span><span>{BRL(order.delivery_fee)}</span>
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <Badge className={statusStyle[order.status]}>{statusLabel[order.status]}</Badge>
+            <span className="font-display text-xl font-semibold">{BRL(order.total)}</span>
+          </div>
         </div>
       </div>
     </DialogContent>
@@ -462,7 +446,6 @@ function OrderDetailsDialog({ order }: { order: Order }) {
 /* ---------------- New order ---------------- */
 
 type Line = { pizza_id: string; quantity: number };
-type OrderType = "pickup" | "delivery" | "dine_in";
 
 const orderTypeLabel: Record<OrderType, string> = {
   pickup: "Retirada",
@@ -537,8 +520,8 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
   const { data: products } = useQuery({
     queryKey: ["products-active"],
     queryFn: async () => {
-      const { data } = await supabase.from("pizzas").select("id,name,price").eq("is_active", true).order("name");
-      return (data ?? []) as { id: string; name: string; price: number }[];
+      const response = await api.get<ApiCollection<{ id: string; name: string; price: number }>>("/pizzas?active=1&per_page=200");
+      return response.data;
     },
   });
 
@@ -573,40 +556,18 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
 
   const create = useMutation({
     mutationFn: async () => {
-      const metaLines = [
-        `Tipo: ${orderTypeLabel[orderType]} (${orderType})`,
-        customerPhone.trim() && `Telefone: ${customerPhone.trim()}`,
-        orderType === "delivery" && deliveryAddress.trim() && `Endereço: ${deliveryAddress.trim()}`,
-        orderType === "delivery" && `Taxa de entrega: ${BRL(effectiveDeliveryFee)}`,
-        `Subtotal: ${BRL(subtotalAmount)}`,
-      ].filter(Boolean).join("\n");
-      const fullNotes = [metaLines, notes.trim()].filter(Boolean).join("\n\n");
-
-      const { data: order, error: e1 } = await supabase
-        .from("orders")
-        .insert({
-          customer_name: customerName.trim() || null,
-          notes: fullNotes || null,
-          total_amount: totalAmount,
-          status: "pending" as const,
-        })
-        .select()
-        .single();
-      if (e1) throw e1;
-
-      const items = validLines.map((l) => {
-        const p = productMap.get(l.pizza_id)!;
-        return {
-          order_id: order.id,
-          pizza_id: l.pizza_id,
-          pizza_name: p.name,
-          quantity: l.quantity,
-          unit_price: Number(p.price),
-          total_price: Number(p.price) * l.quantity,
-        };
+      await api.post("/orders", {
+        customer_name: customerName.trim() || null,
+        customer_phone: customerPhone.trim() || null,
+        order_type: orderType,
+        delivery_address: orderType === "delivery" ? deliveryAddress.trim() : null,
+        delivery_fee: effectiveDeliveryFee,
+        notes: notes.trim() || null,
+        items: validLines.map((line) => ({
+          pizza_id: line.pizza_id,
+          quantity: line.quantity,
+        })),
       });
-      const { error: e2 } = await supabase.from("order_items").insert(items);
-      if (e2) throw e2;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
