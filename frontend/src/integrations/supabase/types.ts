@@ -16,34 +16,34 @@ export type Database = {
     Tables: {
       ingredients: {
         Row: {
-          cost_per_unit: number
+          unit_cost: number
           created_at: string
           id: string
-          min_stock: number
+          minimum_stock: number
           name: string
-          stock_quantity: number
+          current_stock: number
           supplier: string | null
           unit: Database["public"]["Enums"]["unit_type"]
           updated_at: string
         }
         Insert: {
-          cost_per_unit?: number
+          unit_cost?: number
           created_at?: string
           id?: string
-          min_stock?: number
+          minimum_stock?: number
           name: string
-          stock_quantity?: number
+          current_stock?: number
           supplier?: string | null
           unit?: Database["public"]["Enums"]["unit_type"]
           updated_at?: string
         }
         Update: {
-          cost_per_unit?: number
+          unit_cost?: number
           created_at?: string
           id?: string
-          min_stock?: number
+          minimum_stock?: number
           name?: string
-          stock_quantity?: number
+          current_stock?: number
           supplier?: string | null
           unit?: Database["public"]["Enums"]["unit_type"]
           updated_at?: string
@@ -52,27 +52,33 @@ export type Database = {
       }
       order_items: {
         Row: {
+          created_at: string
           id: string
           order_id: string
-          product_id: string
+          pizza_id: string
+          pizza_name: string
           quantity: number
-          subtotal: number | null
+          total_price: number
           unit_price: number
         }
         Insert: {
+          created_at?: string
           id?: string
           order_id: string
-          product_id: string
+          pizza_id: string
+          pizza_name: string
           quantity?: number
-          subtotal?: number | null
+          total_price: number
           unit_price?: number
         }
         Update: {
+          created_at?: string
           id?: string
           order_id?: string
-          product_id?: string
+          pizza_id?: string
+          pizza_name?: string
           quantity?: number
-          subtotal?: number | null
+          total_price?: number
           unit_price?: number
         }
         Relationships: [
@@ -84,10 +90,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "order_items_product_id_fkey"
-            columns: ["product_id"]
+            foreignKeyName: "order_items_pizza_id_fkey"
+            columns: ["pizza_id"]
             isOneToOne: false
-            referencedRelation: "products"
+            referencedRelation: "pizzas"
             referencedColumns: ["id"]
           },
         ]
@@ -97,86 +103,89 @@ export type Database = {
           cancelled_at: string | null
           completed_at: string | null
           created_at: string
-          created_by: string | null
           customer_name: string | null
+          customer_phone: string | null
+          delivery_address: string | null
+          delivery_fee: number
           id: string
           notes: string | null
-          order_number: number
-          started_at: string | null
+          order_type: string
           status: Database["public"]["Enums"]["order_status"]
           stock_deducted: boolean
-          total: number
+          total_amount: number
           updated_at: string
         }
         Insert: {
           cancelled_at?: string | null
           completed_at?: string | null
           created_at?: string
-          created_by?: string | null
           customer_name?: string | null
+          customer_phone?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number
           id?: string
           notes?: string | null
-          order_number?: number
-          started_at?: string | null
+          order_type?: string
           status?: Database["public"]["Enums"]["order_status"]
           stock_deducted?: boolean
-          total?: number
+          total_amount?: number
           updated_at?: string
         }
         Update: {
           cancelled_at?: string | null
           completed_at?: string | null
           created_at?: string
-          created_by?: string | null
           customer_name?: string | null
+          customer_phone?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number
           id?: string
           notes?: string | null
-          order_number?: number
-          started_at?: string | null
+          order_type?: string
           status?: Database["public"]["Enums"]["order_status"]
           stock_deducted?: boolean
-          total?: number
+          total_amount?: number
           updated_at?: string
         }
         Relationships: []
       }
-      product_ingredients: {
+      pizza_ingredients: {
         Row: {
           id: string
           ingredient_id: string
-          product_id: string
+          pizza_id: string
           quantity: number
         }
         Insert: {
           id?: string
           ingredient_id: string
-          product_id: string
+          pizza_id: string
           quantity: number
         }
         Update: {
           id?: string
           ingredient_id?: string
-          product_id?: string
+          pizza_id?: string
           quantity?: number
         }
         Relationships: [
           {
-            foreignKeyName: "product_ingredients_ingredient_id_fkey"
+            foreignKeyName: "pizza_ingredients_ingredient_id_fkey"
             columns: ["ingredient_id"]
             isOneToOne: false
             referencedRelation: "ingredients"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "product_ingredients_product_id_fkey"
-            columns: ["product_id"]
+            foreignKeyName: "pizza_ingredients_pizza_id_fkey"
+            columns: ["pizza_id"]
             isOneToOne: false
-            referencedRelation: "products"
+            referencedRelation: "pizzas"
             referencedColumns: ["id"]
           },
         ]
       }
-      products: {
+      pizzas: {
         Row: {
           category: string
           created_at: string
@@ -233,6 +242,30 @@ export type Database = {
         }
         Relationships: []
       }
+      users: {
+        Row: {
+          email: string
+          id: string
+          name: string
+          password: string
+          role: string
+        }
+        Insert: {
+          email: string
+          id: string
+          name: string
+          password?: string
+          role?: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          name?: string
+          password?: string
+          role?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -276,7 +309,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "gerente" | "operador"
-      order_status: "pendente" | "preparando" | "concluido" | "cancelado"
+      order_status: "pending" | "preparing" | "completed" | "cancelled"
       unit_type: "kg" | "g" | "L" | "ml" | "un"
     }
     CompositeTypes: {
@@ -406,7 +439,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "gerente", "operador"],
-      order_status: ["pendente", "preparando", "concluido", "cancelado"],
+      order_status: ["pending", "preparing", "completed", "cancelled"],
       unit_type: ["kg", "g", "L", "ml", "un"],
     },
   },

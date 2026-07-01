@@ -18,7 +18,7 @@ interface Stats {
   revenueToday: number;
   ordersMonth: number;
   revenueMonth: number;
-  lowStock: Array<{ id: string; name: string; stock_quantity: number; min_stock: number; unit: string }>;
+  lowStock: Array<{ id: string; name: string; current_stock: number; minimum_stock: number; unit: string }>;
   topPizzas: Array<{ name: string; quantidade: number }>;
   monthly: Array<{ mes: string; vendas: number }>;
 }
@@ -30,22 +30,22 @@ async function fetchStats(): Promise<Stats> {
   const yearAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
   const [todayRes, monthRes, lowRes, itemsRes, monthlyRes] = await Promise.all([
-    supabase.from("orders").select("total").gte("created_at", todayStart).neq("status", "cancelado"),
-    supabase.from("orders").select("total").gte("created_at", monthStart).neq("status", "cancelado"),
-    supabase.from("ingredients").select("id,name,stock_quantity,min_stock,unit"),
+    supabase.from("orders").select("total_amount").gte("created_at", todayStart).neq("status", "cancelled"),
+    supabase.from("orders").select("total_amount").gte("created_at", monthStart).neq("status", "cancelled"),
+    supabase.from("ingredients").select("id,name,current_stock,minimum_stock,unit"),
     supabase
       .from("order_items")
-      .select("quantity, product:products(name), order:orders!inner(status,created_at)")
+      .select("quantity, product:pizzas(name), order:orders!inner(status,created_at)")
       .gte("order.created_at", monthStart)
-      .neq("order.status", "cancelado"),
+      .neq("order.status", "cancelled"),
     supabase
       .from("orders")
-      .select("total,created_at")
+      .select("total_amount,created_at")
       .gte("created_at", yearAgo.toISOString())
-      .neq("status", "cancelado"),
+      .neq("status", "cancelled"),
   ]);
 
-  const lowStock = (lowRes.data ?? []).filter((i) => i.stock_quantity <= i.min_stock);
+  const lowStock = (lowRes.data ?? []).filter((i) => i.current_stock <= i.minimum_stock);
 
   const counts = new Map<string, number>();
   (itemsRes.data ?? []).forEach((row: any) => {
@@ -66,7 +66,7 @@ async function fetchStats(): Promise<Stats> {
   }
   (monthlyRes.data ?? []).forEach((o) => {
     const key = o.created_at.slice(0, 7);
-    if (byMonth.has(key)) byMonth.set(key, (byMonth.get(key) ?? 0) + Number(o.total));
+    if (byMonth.has(key)) byMonth.set(key, (byMonth.get(key) ?? 0) + Number(o.total_amount));
   });
   const monthly = Array.from(byMonth.entries()).map(([k, v]) => {
     const [y, m] = k.split("-");
@@ -79,9 +79,9 @@ async function fetchStats(): Promise<Stats> {
 
   return {
     ordersToday: todayRes.data?.length ?? 0,
-    revenueToday: (todayRes.data ?? []).reduce((s, o) => s + Number(o.total), 0),
+    revenueToday: (todayRes.data ?? []).reduce((s, o) => s + Number(o.total_amount), 0),
     ordersMonth: monthRes.data?.length ?? 0,
-    revenueMonth: (monthRes.data ?? []).reduce((s, o) => s + Number(o.total), 0),
+    revenueMonth: (monthRes.data ?? []).reduce((s, o) => s + Number(o.total_amount), 0),
     lowStock,
     topPizzas,
     monthly,
@@ -140,13 +140,13 @@ function DashboardPage() {
               <p className="text-sm text-muted-foreground">Tudo em ordem 🍕</p>
             ) : (
               data!.lowStock.map((i) => {
-                const critical = i.stock_quantity <= i.min_stock * 0.5;
+                const critical = i.current_stock <= i.minimum_stock * 0.5;
                 return (
                   <div key={i.id} className="flex items-center justify-between gap-2 text-sm">
                     <div>
                       <p className="font-medium">{i.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {Number(i.stock_quantity).toFixed(2)} {i.unit} (mín. {Number(i.min_stock).toFixed(2)})
+                        {Number(i.current_stock).toFixed(2)} {i.unit} (mín. {Number(i.minimum_stock).toFixed(2)})
                       </p>
                     </div>
                     <Badge variant={critical ? "destructive" : "secondary"} className={critical ? "" : "bg-warning text-warning-foreground"}>

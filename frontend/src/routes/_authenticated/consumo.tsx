@@ -20,15 +20,15 @@ async function fetchConsumo() {
   const [itemsRes, ordersRes, ingRes] = await Promise.all([
     supabase
       .from("order_items")
-      .select("quantity, product:products(name,recipe:product_ingredients(ingredient_id,quantity)), order:orders!inner(created_at,status)")
+      .select("quantity, product:pizzas(name,recipe:pizza_ingredients(ingredient_id,quantity)), order:orders!inner(created_at,status)")
       .gte("order.created_at", start.toISOString())
-      .neq("order.status", "cancelado"),
+      .neq("order.status", "cancelled"),
     supabase
       .from("orders")
       .select("created_at")
       .gte("created_at", start.toISOString())
-      .neq("status", "cancelado"),
-    supabase.from("ingredients").select("id,name,unit,stock_quantity,min_stock"),
+      .neq("status", "cancelled"),
+    supabase.from("ingredients").select("id,name,unit,current_stock,minimum_stock"),
   ]);
 
   // consumption per ingredient (qty * recipe qty)
@@ -47,8 +47,8 @@ async function fetchConsumo() {
       name: i.name,
       unit: i.unit,
       qty: consumption.get(i.id) ?? 0,
-      stock: Number(i.stock_quantity),
-      min: Number(i.min_stock),
+      stock: Number(i.current_stock),
+      min: Number(i.minimum_stock),
     }))
     .filter((i) => i.qty > 0)
     .sort((a, b) => b.qty - a.qty)
@@ -70,11 +70,11 @@ async function fetchConsumo() {
     .map((i) => {
       const used = consumption.get(i.id) ?? 0;
       const avgDay = used / days;
-      const diasRest = avgDay > 0 ? Number(i.stock_quantity) / avgDay : Infinity;
+      const diasRest = avgDay > 0 ? Number(i.current_stock) / avgDay : Infinity;
       return {
         name: i.name,
         unit: i.unit,
-        stock: Number(i.stock_quantity),
+        stock: Number(i.current_stock),
         avgDay,
         diasRest,
       };

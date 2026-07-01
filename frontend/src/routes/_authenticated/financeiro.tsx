@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,19 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/financeiro")({
+  beforeLoad: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw redirect({ to: "/login" });
+
+    const { data: account } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    const canAccess = account?.role === "admin" || account?.role === "gerente";
+
+    if (!canAccess) throw redirect({ to: "/dashboard" });
+  },
   component: FinanceiroPage,
 });
 
@@ -21,17 +34,17 @@ async function fetchFinance() {
   thirtyDays.setHours(0, 0, 0, 0);
 
   const [monthRes, prevRes, dailyRes, ingRes] = await Promise.all([
-    supabase.from("orders").select("total,created_at").gte("created_at", monthStart).neq("status", "cancelado"),
-    supabase.from("orders").select("total").gte("created_at", prevMonthStart).lt("created_at", monthStart).neq("status", "cancelado"),
-    supabase.from("orders").select("total,created_at").gte("created_at", thirtyDays.toISOString()).neq("status", "cancelado"),
-    supabase.from("ingredients").select("stock_quantity,cost_per_unit"),
+    supabase.from("orders").select("total_amount,created_at").gte("created_at", monthStart).neq("status", "cancelled"),
+    supabase.from("orders").select("total_amount").gte("created_at", prevMonthStart).lt("created_at", monthStart).neq("status", "cancelled"),
+    supabase.from("orders").select("total_amount,created_at").gte("created_at", thirtyDays.toISOString()).neq("status", "cancelled"),
+    supabase.from("ingredients").select("current_stock,unit_cost"),
   ]);
 
-  const revenueMonth = (monthRes.data ?? []).reduce((s, o) => s + Number(o.total), 0);
-  const revenuePrev = (prevRes.data ?? []).reduce((s, o) => s + Number(o.total), 0);
+  const revenueMonth = (monthRes.data ?? []).reduce((s, o) => s + Number(o.total_amount), 0);
+  const revenuePrev = (prevRes.data ?? []).reduce((s, o) => s + Number(o.total_amount), 0);
   const ticket = (monthRes.data?.length ?? 0) > 0 ? revenueMonth / monthRes.data!.length : 0;
   const estoqueAtivo = (ingRes.data ?? []).reduce(
-    (s, i) => s + Number(i.stock_quantity) * Number(i.cost_per_unit),
+    (s, i) => s + Number(i.current_stock) * Number(i.unit_cost),
     0
   );
 
@@ -42,7 +55,7 @@ async function fetchFinance() {
   }
   (dailyRes.data ?? []).forEach((o) => {
     const k = o.created_at.slice(0, 10);
-    if (byDay.has(k)) byDay.set(k, (byDay.get(k) ?? 0) + Number(o.total));
+    if (byDay.has(k)) byDay.set(k, (byDay.get(k) ?? 0) + Number(o.total_amount));
   });
 
   return {

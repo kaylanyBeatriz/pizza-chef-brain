@@ -22,15 +22,15 @@ type Ingredient = {
   id: string;
   name: string;
   unit: "kg" | "g" | "L" | "ml" | "un";
-  stock_quantity: number;
-  min_stock: number;
-  cost_per_unit: number;
+  current_stock: number;
+  minimum_stock: number;
+  unit_cost: number;
   supplier: string | null;
 };
 
 function statusOf(i: Ingredient) {
-  if (i.stock_quantity <= i.min_stock * 0.5) return { label: "Crítico", cls: "bg-destructive text-destructive-foreground" };
-  if (i.stock_quantity <= i.min_stock) return { label: "Baixo", cls: "bg-warning text-warning-foreground" };
+  if (i.current_stock <= i.minimum_stock * 0.5) return { label: "Crítico", cls: "bg-destructive text-destructive-foreground" };
+  if (i.current_stock <= i.minimum_stock) return { label: "Baixo", cls: "bg-warning text-warning-foreground" };
   return { label: "OK", cls: "bg-success text-success-foreground" };
 }
 
@@ -81,7 +81,7 @@ function EstoquePage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const lowCount = (data ?? []).filter((i) => i.stock_quantity <= i.min_stock).length;
+  const lowCount = (data ?? []).filter((i) => i.current_stock <= i.minimum_stock).length;
 
   return (
     <div className="space-y-6">
@@ -141,9 +141,9 @@ function EstoquePage() {
                 return (
                   <TableRow key={i.id}>
                     <TableCell className="font-medium">{i.name}</TableCell>
-                    <TableCell>{Number(i.stock_quantity).toFixed(2)} {i.unit}</TableCell>
-                    <TableCell className="text-muted-foreground">{Number(i.min_stock).toFixed(2)}</TableCell>
-                    <TableCell>{Number(i.cost_per_unit).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
+                    <TableCell>{Number(i.current_stock).toFixed(2)} {i.unit}</TableCell>
+                    <TableCell className="text-muted-foreground">{Number(i.minimum_stock).toFixed(2)}</TableCell>
+                    <TableCell>{Number(i.unit_cost).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
                     <TableCell className="text-muted-foreground">{i.supplier ?? "—"}</TableCell>
                     <TableCell><Badge className={s.cls}>{s.label}</Badge></TableCell>
                     <TableCell className="text-right">
@@ -170,9 +170,9 @@ function IngredientDialog({
 }: { editing: Ingredient | null; onSubmit: (v: any) => void; saving: boolean }) {
   const [name, setName] = useState(editing?.name ?? "");
   const [unit, setUnit] = useState<Ingredient["unit"]>(editing?.unit ?? "kg");
-  const [stock, setStock] = useState(String(editing?.stock_quantity ?? "0"));
-  const [min, setMin] = useState(String(editing?.min_stock ?? "0"));
-  const [cost, setCost] = useState(String(editing?.cost_per_unit ?? "0"));
+  const [stock, setStock] = useState(String(editing?.current_stock ?? "0"));
+  const [min, setMin] = useState(String(editing?.minimum_stock ?? "0"));
+  const [cost, setCost] = useState(String(editing?.unit_cost ?? "0"));
   const [supplier, setSupplier] = useState(editing?.supplier ?? "");
 
   return (
@@ -186,9 +186,9 @@ function IngredientDialog({
           onSubmit({
             name: name.trim(),
             unit,
-            stock_quantity: Number(stock),
-            min_stock: Number(min),
-            cost_per_unit: Number(cost),
+            current_stock: Number(stock),
+            minimum_stock: Number(min),
+            unit_cost: Number(cost),
             supplier: supplier.trim() || null,
           });
         }}

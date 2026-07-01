@@ -13,13 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
   component: PedidosPage,
 });
 
-type OrderStatus = "pendente" | "preparando" | "concluido" | "cancelado";
+type OrderStatus = "pending" | "preparing" | "completed" | "cancelled";
 type OrderItem = { id: string; quantity: number; unit_price: number; product: { name: string } | null };
 type Order = {
   id: string;
@@ -41,13 +40,13 @@ const time = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—";
 
 const statusStyle: Record<OrderStatus, string> = {
-  pendente: "bg-warning text-warning-foreground",
-  preparando: "bg-secondary text-secondary-foreground",
-  concluido: "bg-success text-success-foreground",
-  cancelado: "bg-muted text-muted-foreground",
+  pending: "bg-warning text-warning-foreground",
+  preparing: "bg-secondary text-secondary-foreground",
+  completed: "bg-success text-success-foreground",
+  cancelled: "bg-muted text-muted-foreground",
 };
 const statusLabel: Record<OrderStatus, string> = {
-  pendente: "Pendente", preparando: "Preparando", concluido: "Concluído", cancelado: "Cancelado",
+  pending: "Pendente", preparing: "Preparando", completed: "Concluído", cancelled: "Cancelado",
 };
 
 const LATE_PENDING_MIN = 10;
@@ -78,11 +77,21 @@ function PedidosPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
-        .select("*, order_items(id, quantity, unit_price, product:products(name))")
+        .select("*, order_items(id, quantity, unit_price, product:pizzas(name))")
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
-      return data as unknown as Order[];
+      return (data ?? []).map((order) => ({
+        ...order,
+        id: String(order.id),
+        order_number: Number(order.id),
+        total: Number(order.total_amount),
+        started_at: order.status === "preparing" ? order.updated_at : null,
+        order_items: (order.order_items ?? []).map((item) => ({
+          ...item,
+          id: String(item.id),
+        })),
+      })) as unknown as Order[];
     },
   });
 
@@ -99,10 +108,10 @@ function PedidosPage() {
       qc.invalidateQueries({ queryKey: ["dashboard"] });
       qc.invalidateQueries({ queryKey: ["ingredients"] });
       const msg: Record<OrderStatus, string> = {
-        pendente: "Pedido voltou para pendente",
-        preparando: "Preparo iniciado",
-        concluido: "Pedido concluído — estoque baixado",
-        cancelado: "Pedido cancelado",
+        pending: "Pedido voltou para pendente",
+        preparing: "Preparo iniciado",
+        completed: "Pedido concluído — estoque baixado",
+        cancelled: "Pedido cancelado",
       };
       toast.success(msg[status]);
     },
@@ -111,17 +120,17 @@ function PedidosPage() {
 
   const todayOrders = useMemo(() => (orders ?? []).filter((o) => isToday(o.created_at)), [orders]);
   const grouped = useMemo(() => {
-    const g: Record<OrderStatus, Order[]> = { pendente: [], preparando: [], concluido: [], cancelado: [] };
+    const g: Record<OrderStatus, Order[]> = { pending: [], preparing: [], completed: [], cancelled: [] };
     (orders ?? []).forEach((o) => {
-      if (o.status === "concluido" && !isToday(o.created_at)) return;
+      if (o.status === "completed" && !isToday(o.created_at)) return;
       g[o.status].push(o);
     });
     return g;
   }, [orders]);
 
   const summary = useMemo(() => {
-    const concluidosHoje = todayOrders.filter((o) => o.status === "concluido");
-    const emAndamento = (orders ?? []).filter((o) => o.status === "pendente" || o.status === "preparando");
+    const concluidosHoje = todayOrders.filter((o) => o.status === "completed");
+    const emAndamento = (orders ?? []).filter((o) => o.status === "pending" || o.status === "preparing");
     const faturamento = concluidosHoje.reduce((s, o) => s + Number(o.total), 0);
     return {
       total: todayOrders.length,
@@ -153,7 +162,7 @@ function PedidosPage() {
           title="Pendentes"
           icon={<Clock className="size-4" />}
           empty="Nenhum pedido pendente no momento."
-          orders={grouped.pendente}
+          orders={grouped.pending}
         >
           {(o) => (
             <OrderCard order={o} pending={pendingId === o.id}
@@ -162,8 +171,8 @@ function PedidosPage() {
                 <StatusActionButtons
                   order={o}
                   pending={pendingId === o.id}
-                  onAdvance={() => updateStatus.mutate({ id: o.id, status: "preparando" })}
-                  onCancel={() => updateStatus.mutate({ id: o.id, status: "cancelado" })}
+                  onAdvance={() => updateStatus.mutate({ id: o.id, status: "preparing" })}
+                  onCancel={() => updateStatus.mutate({ id: o.id, status: "cancelled" })}
                 />
               }
             />
@@ -174,7 +183,7 @@ function PedidosPage() {
           title="Preparando"
           icon={<ChefHat className="size-4" />}
           empty="Nenhum pedido em preparo."
-          orders={grouped.preparando}
+          orders={grouped.preparing}
         >
           {(o) => (
             <OrderCard order={o} pending={pendingId === o.id}
@@ -184,8 +193,8 @@ function PedidosPage() {
                   order={o}
                   pending={pendingId === o.id}
                   onAdvance={() => setConfirmComplete(o)}
-                  onBack={() => updateStatus.mutate({ id: o.id, status: "pendente" })}
-                  onCancel={() => updateStatus.mutate({ id: o.id, status: "cancelado" })}
+                  onBack={() => updateStatus.mutate({ id: o.id, status: "pending" })}
+                  onCancel={() => updateStatus.mutate({ id: o.id, status: "cancelled" })}
                 />
               }
             />
@@ -196,7 +205,7 @@ function PedidosPage() {
           title="Concluídos hoje"
           icon={<Check className="size-4" />}
           empty="Nenhum pedido concluído hoje."
-          orders={grouped.concluido}
+          orders={grouped.completed}
         >
           {(o) => (
             <OrderCard order={o} pending={false}
@@ -229,7 +238,7 @@ function PedidosPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (confirmComplete) updateStatus.mutate({ id: confirmComplete.id, status: "concluido" });
+                if (confirmComplete) updateStatus.mutate({ id: confirmComplete.id, status: "completed" });
                 setConfirmComplete(null);
               }}
             >
@@ -292,13 +301,13 @@ function OrderColumn({
 
 function OrderCard({ order, pending, actions, onDetails }: { order: Order; pending: boolean; actions: React.ReactNode; onDetails: () => void }) {
   const late =
-    (order.status === "pendente" && (minutesSince(order.created_at) ?? 0) >= LATE_PENDING_MIN) ||
-    (order.status === "preparando" && (minutesSince(order.started_at) ?? 0) >= LATE_PREPARING_MIN);
+    (order.status === "pending" && (minutesSince(order.created_at) ?? 0) >= LATE_PENDING_MIN) ||
+    (order.status === "preparing" && (minutesSince(order.started_at) ?? 0) >= LATE_PREPARING_MIN);
 
-  const prepMin = order.status === "preparando"
+  const prepMin = order.status === "preparing"
     ? minutesSince(order.started_at)
     : minutesBetween(order.started_at, order.completed_at);
-  const totalMin = order.status === "concluido"
+  const totalMin = order.status === "completed"
     ? minutesBetween(order.created_at, order.completed_at)
     : minutesSince(order.created_at);
 
@@ -327,7 +336,7 @@ function OrderCard({ order, pending, actions, onDetails }: { order: Order; pendi
         <span>Criado às {time(order.created_at)}</span>
         {order.started_at && <span>Preparo às {time(order.started_at)}</span>}
         {order.completed_at && <span>Concluído às {time(order.completed_at)}</span>}
-        {prepMin != null && order.status !== "pendente" && <span>Preparo: {prepMin} min</span>}
+        {prepMin != null && order.status !== "pending" && <span>Preparo: {prepMin} min</span>}
         {totalMin != null && <span>Tempo total: {totalMin} min</span>}
       </div>
 
@@ -347,8 +356,8 @@ function StatusActionButtons({
   order: Order; pending: boolean;
   onAdvance?: () => void; onBack?: () => void; onCancel?: () => void;
 }) {
-  const advanceLabel = order.status === "pendente" ? "Iniciar preparo" : "Concluir pedido";
-  const disabled = pending || (order.status === "concluido");
+  const advanceLabel = order.status === "pending" ? "Iniciar preparo" : "Concluir pedido";
+  const disabled = pending || (order.status === "completed");
   return (
     <div className="flex gap-2">
       {onAdvance && (
@@ -371,8 +380,8 @@ function StatusActionButtons({
 }
 
 function OrderDetailsDialog({ order }: { order: Order }) {
-  const prepMin = minutesBetween(order.started_at, order.completed_at) ?? (order.status === "preparando" ? minutesSince(order.started_at) : null);
-  const totalMin = order.status === "concluido"
+  const prepMin = minutesBetween(order.started_at, order.completed_at) ?? (order.status === "preparing" ? minutesSince(order.started_at) : null);
+  const totalMin = order.status === "completed"
     ? minutesBetween(order.created_at, order.completed_at)
     : minutesSince(order.created_at);
   return (
@@ -418,7 +427,7 @@ function OrderDetailsDialog({ order }: { order: Order }) {
 
 /* ---------------- New order ---------------- */
 
-type Line = { product_id: string; quantity: number };
+type Line = { pizza_id: string; quantity: number };
 type OrderType = "pickup" | "delivery" | "dine_in";
 
 const orderTypeLabel: Record<OrderType, string> = {
@@ -481,21 +490,20 @@ function FormErrorMessage({ children }: { children?: React.ReactNode }) {
 
 function NewOrderDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
-  const { user } = useAuth();
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [orderType, setOrderType] = useState<OrderType>("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ product_id: "", quantity: 1 }]);
+  const [lines, setLines] = useState<Line[]>([{ pizza_id: "", quantity: 1 }]);
   const [touched, setTouched] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const { data: products } = useQuery({
     queryKey: ["products-active"],
     queryFn: async () => {
-      const { data } = await supabase.from("products").select("id,name,price").eq("is_active", true).order("name");
+      const { data } = await supabase.from("pizzas").select("id,name,price").eq("is_active", true).order("name");
       return (data ?? []) as { id: string; name: string; price: number }[];
     },
   });
@@ -503,16 +511,16 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
   const productMap = useMemo(() => new Map((products ?? []).map((p) => [p.id, p])), [products]);
 
   const validLines = lines.filter((l) => {
-    const p = productMap.get(l.product_id);
+    const p = productMap.get(l.pizza_id);
     return p && Number(p.price) > 0 && l.quantity > 0;
   });
-  const subtotalAmount = validLines.reduce((s, l) => s + Number(productMap.get(l.product_id)!.price) * l.quantity, 0);
+  const subtotalAmount = validLines.reduce((s, l) => s + Number(productMap.get(l.pizza_id)!.price) * l.quantity, 0);
   const effectiveDeliveryFee = orderType === "delivery" ? Math.max(0, Number(deliveryFee) || 0) : 0;
   const totalAmount = subtotalAmount + effectiveDeliveryFee;
 
   const errors = useMemo(() => {
     const e: { items?: string; address?: string; fee?: string } = {};
-    if (!lines.some((l) => l.product_id)) e.items = "Adicione pelo menos uma pizza ao pedido.";
+    if (!lines.some((l) => l.pizza_id)) e.items = "Adicione pelo menos uma pizza ao pedido.";
     else if (validLines.length === 0) e.items = "Selecione uma pizza válida e quantidade maior que zero.";
     if (orderType === "delivery" && !deliveryAddress.trim()) e.address = "Informe o endereço de entrega.";
     if (orderType === "delivery" && deliveryFee < 0) e.fee = "A taxa de entrega não pode ser negativa.";
@@ -522,7 +530,7 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
   const hasErrors = Object.keys(errors).length > 0;
   const isDirty =
     customerName.trim() !== "" || customerPhone.trim() !== "" || deliveryAddress.trim() !== "" ||
-    notes.trim() !== "" || deliveryFee > 0 || lines.some((l) => l.product_id);
+    notes.trim() !== "" || deliveryFee > 0 || lines.some((l) => l.pizza_id);
 
   const handleClose = () => {
     if (isDirty) setConfirmDiscard(true);
@@ -545,17 +553,23 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
         .insert({
           customer_name: customerName.trim() || null,
           notes: fullNotes || null,
-          total: totalAmount,
-          status: "pendente" as const,
-          created_by: user?.id,
+          total_amount: totalAmount,
+          status: "pending" as const,
         })
         .select()
         .single();
       if (e1) throw e1;
 
       const items = validLines.map((l) => {
-        const p = productMap.get(l.product_id)!;
-        return { order_id: order.id, product_id: l.product_id, quantity: l.quantity, unit_price: Number(p.price) };
+        const p = productMap.get(l.pizza_id)!;
+        return {
+          order_id: order.id,
+          pizza_id: l.pizza_id,
+          pizza_name: p.name,
+          quantity: l.quantity,
+          unit_price: Number(p.price),
+          total_price: Number(p.price) * l.quantity,
+        };
       });
       const { error: e2 } = await supabase.from("order_items").insert(items);
       if (e2) throw e2;
@@ -638,7 +652,7 @@ function NewOrderDialog({ onClose }: { onClose: () => void }) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Itens</Label>
-              <Button size="sm" variant="outline" onClick={() => setLines((ls) => [...ls, { product_id: "", quantity: 1 }])}>
+              <Button size="sm" variant="outline" onClick={() => setLines((ls) => [...ls, { pizza_id: "", quantity: 1 }])}>
                 <Plus className="size-4 mr-1" /> Adicionar item
               </Button>
             </div>
@@ -737,7 +751,7 @@ function OrderItemRow({
   onChange: (next: Line) => void;
   onRemove: () => void;
 }) {
-  const product = products.find((p) => p.id === line.product_id);
+  const product = products.find((p) => p.id === line.pizza_id);
   const unit = product ? Number(product.price) : 0;
   const subtotal = unit * (line.quantity || 0);
   const noPrice = !!product && unit <= 0;
@@ -745,7 +759,7 @@ function OrderItemRow({
   return (
     <div className="rounded-lg border bg-card p-3 space-y-2">
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_90px_auto] gap-2 items-start">
-        <Select value={line.product_id} onValueChange={(v) => onChange({ ...line, product_id: v })}>
+        <Select value={line.pizza_id} onValueChange={(v) => onChange({ ...line, pizza_id: v })}>
           <SelectTrigger className={noPrice ? "border-destructive" : ""}>
             <SelectValue placeholder="Selecione a pizza" />
           </SelectTrigger>
