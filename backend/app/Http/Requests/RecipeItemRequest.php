@@ -14,7 +14,7 @@ class RecipeItemRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'ingredient_id' => ['required', 'uuid', 'exists:ingredients,id'],
+            'ingredient_id' => ['required', 'integer', 'exists:ingredients,id'],
             'quantity' => ['required', 'numeric', 'gt:0'],
         ];
     }

@@ -17,10 +17,10 @@ class OrderController extends Controller
     public function index(): AnonymousResourceCollection
     {
         $orders = Order::query()
-            ->with('items.product')
+            ->with('items.pizza')
             ->when(request('status'), fn ($query, $status) => $query->where('status', $status))
             ->latest()
-            ->paginate(50);
+            ->paginate(min((int) request('per_page', 200), 200));
 
         return OrderResource::collection($orders);
     }
@@ -32,15 +32,11 @@ class OrderController extends Controller
 
     public function show(Order $order): OrderResource
     {
-        return new OrderResource($order->load('items.product'));
+        return new OrderResource($order->load('items.pizza'));
     }
 
-    public function updateStatus(
-        UpdateOrderStatusRequest $request,
-        Order $order,
-    ): OrderResource {
-        return new OrderResource(
-            $this->orderService->updateStatus($order, $request->validated('status')),
-        );
+    public function updateStatus(UpdateOrderStatusRequest $request, Order $order): OrderResource
+    {
+        return new OrderResource($this->orderService->updateStatus($order, $request->validated('status')));
     }
 }

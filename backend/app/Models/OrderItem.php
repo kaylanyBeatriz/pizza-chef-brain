@@ -2,22 +2,21 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\UsesUuid;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['order_id', 'product_id', 'quantity', 'unit_price', 'subtotal'])]
+#[Fillable(['order_id', 'pizza_id', 'pizza_name', 'quantity', 'unit_price', 'total_price'])]
 class OrderItem extends Model
 {
-    use UsesUuid;
+    public const UPDATED_AT = null;
 
     protected function casts(): array
     {
         return [
             'quantity' => 'integer',
             'unit_price' => 'decimal:2',
-            'subtotal' => 'decimal:2',
+            'total_price' => 'decimal:2',
         ];
     }
 
@@ -26,8 +25,8 @@ class OrderItem extends Model
         return $this->belongsTo(Order::class);
     }
 
-    public function product(): BelongsTo
+    public function pizza(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Pizza::class);
     }
 }

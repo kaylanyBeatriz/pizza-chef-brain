@@ -10,12 +10,15 @@ class OrderItemResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'product_id' => $this->product_id,
-            'quantity' => $this->quantity,
+            'id' => (string) $this->id,
+            'pizza_id' => $this->pizza_id,
+            'pizza_name' => $this->pizza_name,
+            'quantity' => (int) $this->quantity,
             'unit_price' => (float) $this->unit_price,
-            'subtotal' => (float) $this->subtotal,
-            'product' => new ProductResource($this->whenLoaded('product')),
+            'total_price' => (float) $this->total_price,
+            'product' => $this->relationLoaded('pizza') && $this->pizza
+                ? ['name' => $this->pizza->name]
+                : ['name' => $this->pizza_name],
         ];
     }
 }

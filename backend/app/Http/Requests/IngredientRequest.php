@@ -17,11 +17,9 @@ class IngredientRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255', Rule::unique('ingredients')->ignore($this->route('ingredient'))],
             'unit' => ['required', Rule::in(['kg', 'g', 'L', 'ml', 'un'])],
-            'stock_quantity' => $this->isMethod('post')
-                ? ['required', 'numeric', 'min:0']
-                : ['prohibited'],
-            'min_stock' => ['required', 'numeric', 'min:0'],
-            'cost_per_unit' => ['required', 'numeric', 'min:0'],
+            'current_stock' => ['required', 'numeric', 'min:0'],
+            'minimum_stock' => ['required', 'numeric', 'min:0'],
+            'unit_cost' => ['required', 'numeric', 'min:0'],
             'supplier' => ['nullable', 'string', 'max:255'],
         ];
     }
