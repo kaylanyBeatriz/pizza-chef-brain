@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\InactiveUserException;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 
@@ -13,8 +14,10 @@ class SupabaseAuthService
             return new User([
                 'id' => '00000000-0000-0000-0000-000000000001',
                 'name' => 'Test Admin',
-                'email' => 'admin@example.com',
+                'email' => 'admin-bypass@example.com',
+                'password' => '',
                 'role' => 'admin',
+                'active' => true,
             ]);
         }
 
@@ -43,14 +46,21 @@ class SupabaseAuthService
             $name = $email !== '' ? strtok($email, '@') ?: $email : 'Usuário';
         }
 
-        return User::query()->firstOrCreate(
+        $user = User::query()->firstOrCreate(
             ['id' => $id],
             [
                 'name' => $name,
                 'email' => $email,
                 'password' => '',
                 'role' => 'operador',
+                'active' => true,
             ],
         );
+
+        if (! $user->active) {
+            throw new InactiveUserException('Usuário desativado.');
+        }
+
+        return $user;
     }
 }

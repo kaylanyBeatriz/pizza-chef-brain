@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\IngredientController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PizzaController;
+use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn () => ['status' => 'ok']);
@@ -35,6 +36,12 @@ Route::middleware('supabase.auth')->group(function (): void {
     Route::post('orders', [OrderController::class, 'store']);
     Route::get('orders/{order}', [OrderController::class, 'show']);
     Route::patch('orders/{order}/status', [OrderController::class, 'updateStatus']);
+
+    Route::middleware('role:admin')->group(function (): void {
+        Route::get('users', [UserController::class, 'index']);
+        Route::patch('users/{user}', [UserController::class, 'update']);
+        Route::delete('users/{user}', [UserController::class, 'destroy']);
+    });
 
     Route::get('dashboard', [DashboardController::class, 'dashboard']);
     Route::get('reports/consumption', [DashboardController::class, 'consumption']);

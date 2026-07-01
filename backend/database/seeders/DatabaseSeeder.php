@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Administrador',
             'password' => '',
             'role' => 'admin',
+            'active' => true,
         ]);
     }
 }
