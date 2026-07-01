@@ -15,7 +15,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedProdutosRouteImport } from './routes/_authenticated/produtos'
 import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated/pedidos'
-import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
 import { Route as AuthenticatedEstoqueRouteImport } from './routes/_authenticated/estoque'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedConsumoRouteImport } from './routes/_authenticated/consumo'
@@ -49,11 +48,6 @@ const AuthenticatedPedidosRoute = AuthenticatedPedidosRouteImport.update({
   path: '/pedidos',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedFinanceiroRoute = AuthenticatedFinanceiroRouteImport.update({
-  id: '/financeiro',
-  path: '/financeiro',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedEstoqueRoute = AuthenticatedEstoqueRouteImport.update({
   id: '/estoque',
   path: '/estoque',
@@ -76,7 +70,6 @@ export interface FileRoutesByFullPath {
   '/consumo': typeof AuthenticatedConsumoRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
-  '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/produtos': typeof AuthenticatedProdutosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
@@ -87,7 +80,6 @@ export interface FileRoutesByTo {
   '/consumo': typeof AuthenticatedConsumoRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/estoque': typeof AuthenticatedEstoqueRoute
-  '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/produtos': typeof AuthenticatedProdutosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
@@ -100,7 +92,6 @@ export interface FileRoutesById {
   '/_authenticated/consumo': typeof AuthenticatedConsumoRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/estoque': typeof AuthenticatedEstoqueRoute
-  '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
   '/_authenticated/pedidos': typeof AuthenticatedPedidosRoute
   '/_authenticated/produtos': typeof AuthenticatedProdutosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
@@ -113,7 +104,6 @@ export interface FileRouteTypes {
     | '/consumo'
     | '/dashboard'
     | '/estoque'
-    | '/financeiro'
     | '/pedidos'
     | '/produtos'
     | '/usuarios'
@@ -124,7 +114,6 @@ export interface FileRouteTypes {
     | '/consumo'
     | '/dashboard'
     | '/estoque'
-    | '/financeiro'
     | '/pedidos'
     | '/produtos'
     | '/usuarios'
@@ -136,7 +125,6 @@ export interface FileRouteTypes {
     | '/_authenticated/consumo'
     | '/_authenticated/dashboard'
     | '/_authenticated/estoque'
-    | '/_authenticated/financeiro'
     | '/_authenticated/pedidos'
     | '/_authenticated/produtos'
     | '/_authenticated/usuarios'
@@ -192,13 +180,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPedidosRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/financeiro': {
-      id: '/_authenticated/financeiro'
-      path: '/financeiro'
-      fullPath: '/financeiro'
-      preLoaderRoute: typeof AuthenticatedFinanceiroRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/estoque': {
       id: '/_authenticated/estoque'
       path: '/estoque'
@@ -227,7 +208,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedConsumoRoute: typeof AuthenticatedConsumoRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedEstoqueRoute: typeof AuthenticatedEstoqueRoute
-  AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
   AuthenticatedPedidosRoute: typeof AuthenticatedPedidosRoute
   AuthenticatedProdutosRoute: typeof AuthenticatedProdutosRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
@@ -237,7 +217,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedConsumoRoute: AuthenticatedConsumoRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedEstoqueRoute: AuthenticatedEstoqueRoute,
-  AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
   AuthenticatedPedidosRoute: AuthenticatedPedidosRoute,
   AuthenticatedProdutosRoute: AuthenticatedProdutosRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,

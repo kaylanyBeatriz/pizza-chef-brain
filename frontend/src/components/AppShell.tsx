@@ -1,7 +1,6 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
-  Wallet,
   Carrot,
   Flame,
   ShoppingCart,
@@ -19,7 +18,6 @@ import logo from "@/assets/big-pizza-logo.png";
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/pedidos", label: "Pedidos", icon: ShoppingCart },
-  { to: "/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/estoque", label: "Ingredientes", icon: Carrot },
   { to: "/consumo", label: "Consumo", icon: Flame },
   { to: "/produtos", label: "Pizzas & Receitas", icon: Pizza },
@@ -30,10 +28,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, roles, signOut } = useAuth();
-  const canAccessFinance = roles.includes("admin") || roles.includes("gerente");
   const canAccessUsers = roles.includes("admin");
   const visibleNav = nav.filter((item) => {
-    if (item.to === "/financeiro") return canAccessFinance;
     if (item.to === "/usuarios") return canAccessUsers;
     return true;
   });
