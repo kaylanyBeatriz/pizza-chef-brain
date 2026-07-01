@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'supabase' => [
+        'url' => env('SUPABASE_URL'),
+        'public_key' => env('SUPABASE_PUBLISHABLE_KEY'),
+        'auth_bypass' => env('SUPABASE_AUTH_BYPASS', false),
+    ],
+
 ];
