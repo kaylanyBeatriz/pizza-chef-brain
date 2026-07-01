@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, ChefHat } from "lucide-react";
 import { toast } from "sonner";
 import { api, type ApiCollection } from "@/lib/api";
@@ -194,6 +194,14 @@ function ProductDialog({ editing, onSubmit, saving }: { editing: Product | null;
   const [category, setCategory] = useState(editing?.category ?? "Pizza");
   const [price, setPrice] = useState(String(editing?.price ?? "0"));
   const [isActive, setIsActive] = useState(editing?.is_active ?? true);
+
+  useEffect(() => {
+    setName(editing?.name ?? "");
+    setDescription(editing?.description ?? "");
+    setCategory(editing?.category ?? "Pizza");
+    setPrice(String(editing?.price ?? "0"));
+    setIsActive(editing?.is_active ?? true);
+  }, [editing]);
 
   return (
     <DialogContent>

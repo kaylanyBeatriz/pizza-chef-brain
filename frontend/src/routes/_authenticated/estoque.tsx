@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { api, type ApiCollection } from "@/lib/api";
@@ -171,6 +171,15 @@ function IngredientDialog({
   const [min, setMin] = useState(String(editing?.minimum_stock ?? "0"));
   const [cost, setCost] = useState(String(editing?.unit_cost ?? "0"));
   const [supplier, setSupplier] = useState(editing?.supplier ?? "");
+
+  useEffect(() => {
+    setName(editing?.name ?? "");
+    setUnit(editing?.unit ?? "kg");
+    setStock(String(editing?.current_stock ?? "0"));
+    setMin(String(editing?.minimum_stock ?? "0"));
+    setCost(String(editing?.unit_cost ?? "0"));
+    setSupplier(editing?.supplier ?? "");
+  }, [editing]);
 
   return (
     <DialogContent>
