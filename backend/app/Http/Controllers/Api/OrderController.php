@@ -20,7 +20,7 @@ class OrderController extends Controller
             ->with('items.pizza')
             ->when(request('status'), fn ($query, $status) => $query->where('status', $status))
             ->latest()
-            ->paginate(min((int) request('per_page', 200), 200));
+            ->paginate(min((int) request('per_page', 1000), 1000));
 
         return OrderResource::collection($orders);
     }

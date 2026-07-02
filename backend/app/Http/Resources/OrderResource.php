@@ -21,14 +21,19 @@ class OrderResource extends JsonResource
             'delivery_fee' => (float) $this->delivery_fee,
             'total' => (float) $this->total_amount,
             'notes' => $this->notes,
-            'started_at' => $this->preparing_at?->toISOString(),
-            'completed_at' => $this->completed_at?->toISOString(),
-            'cancelled_at' => $this->cancelled_at?->toISOString(),
+            'started_at' => $this->formatDate($this->preparing_at),
+            'completed_at' => $this->formatDate($this->completed_at),
+            'cancelled_at' => $this->formatDate($this->cancelled_at),
             'stock_deducted' => (bool) $this->stock_deducted,
-            'stock_deducted_at' => $this->stock_deducted_at?->toISOString(),
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'stock_deducted_at' => $this->formatDate($this->stock_deducted_at),
+            'created_at' => $this->formatDate($this->created_at),
+            'updated_at' => $this->formatDate($this->updated_at),
             'order_items' => OrderItemResource::collection($this->whenLoaded('items')),
         ];
+    }
+
+    protected function formatDate($value): ?string
+    {
+        return $value?->copy()->timezone('America/Sao_Paulo')->format('Y-m-d\TH:i:sP');
     }
 }

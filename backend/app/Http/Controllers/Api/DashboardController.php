@@ -12,33 +12,34 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function dashboard(): JsonResponse
+    public function dashboard(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
         $now = CarbonImmutable::now();
         $today = $now->startOfDay();
         $monthStart = $now->startOfMonth();
-        $yearStart = $monthStart->subMonths(11);
+
+        $from = isset($validated['from'])
+            ? CarbonImmutable::parse($validated['from'])->startOfDay()
+            : $monthStart;
+        $to = isset($validated['to'])
+            ? CarbonImmutable::parse($validated['to'])->endOfDay()
+            : $now->endOfDay();
 
         $completed = Order::query()->where('status', Order::STATUS_COMPLETED);
-        $monthlyOrders = (clone $completed)->where('completed_at', '>=', $yearStart)->get(['completed_at', 'total_amount']);
-        $monthly = collect(range(11, 1))->map(function (int $monthsAgo) use ($monthStart, $monthlyOrders): array {
-            $month = $monthStart->subMonths($monthsAgo);
-            $value = $monthlyOrders
-                ->filter(fn (Order $order) => $order->completed_at?->format('Y-m') === $month->format('Y-m'))
-                ->sum(fn (Order $order) => (float) $order->total_amount);
+        $periodOrders = (clone $completed)
+            ->whereBetween('completed_at', [$from, $to])
+            ->get(['completed_at', 'total_amount']);
 
-            return ['mes' => $month->locale('pt_BR')->translatedFormat('M'), 'vendas' => round($value, 2)];
-        })->push([
-            'mes' => $monthStart->locale('pt_BR')->translatedFormat('M'),
-            'vendas' => round($monthlyOrders
-                ->filter(fn (Order $order) => $order->completed_at?->format('Y-m') === $monthStart->format('Y-m'))
-                ->sum(fn (Order $order) => (float) $order->total_amount), 2),
-        ]);
-
+        $daily = $this->buildDailySeries($from, $to, $periodOrders);
         $topPizzas = DB::table('order_items')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('orders.status', Order::STATUS_COMPLETED)
-            ->where('orders.completed_at', '>=', $monthStart)
+            ->whereBetween('orders.completed_at', [$from, $to])
             ->groupBy('order_items.pizza_id', 'order_items.pizza_name')
             ->orderByDesc(DB::raw('SUM(order_items.quantity)'))
             ->limit(5)
@@ -51,13 +52,13 @@ class DashboardController extends Controller
         return response()->json([
             'ordersToday' => Order::query()->whereDate('created_at', $today)->where('status', '!=', Order::STATUS_CANCELLED)->count(),
             'revenueToday' => (float) (clone $completed)->whereDate('completed_at', $today)->sum('total_amount'),
-            'ordersMonth' => Order::query()->where('created_at', '>=', $monthStart)->where('status', '!=', Order::STATUS_CANCELLED)->count(),
-            'revenueMonth' => (float) (clone $completed)->where('completed_at', '>=', $monthStart)->sum('total_amount'),
+            'ordersPeriod' => $periodOrders->count(),
+            'revenuePeriod' => round((float) $periodOrders->sum(fn (Order $order) => (float) $order->total_amount), 2),
             'lowStock' => Ingredient::query()->whereColumn('current_stock', '<=', 'minimum_stock')->orderBy('current_stock')->get([
                 'id', 'name', 'current_stock', 'minimum_stock', 'unit',
             ]),
             'topPizzas' => $topPizzas,
-            'monthly' => $monthly->values(),
+            'daily' => $daily,
         ]);
     }
 
@@ -173,5 +174,28 @@ class DashboardController extends Controller
             'estoqueAtivo' => (float) Ingredient::query()->selectRaw('COALESCE(SUM(current_stock * unit_cost), 0) as total')->value('total'),
             'daily' => $daily->values(),
         ]);
+    }
+
+    /**
+     * @param  iterable<int, Order>  $orders
+     * @return array<int, array{dia: string, vendas: float}>
+     */
+    private function buildDailySeries(CarbonImmutable $from, CarbonImmutable $to, iterable $orders): array
+    {
+        $ordersByDay = collect($orders)->groupBy(fn (Order $order) => $order->completed_at?->toDateString());
+        $series = [];
+        $current = $from->startOfDay();
+        $end = $to->startOfDay();
+
+        while ($current->lessThanOrEqualTo($end)) {
+            $dayOrders = $ordersByDay->get($current->toDateString(), collect());
+            $series[] = [
+                'dia' => $current->format('d/m'),
+                'vendas' => round((float) $dayOrders->sum(fn (Order $order) => (float) $order->total_amount), 2),
+            ];
+            $current = $current->addDay();
+        }
+
+        return $series;
     }
 }

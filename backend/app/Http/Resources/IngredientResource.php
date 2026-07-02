@@ -17,8 +17,13 @@ class IngredientResource extends JsonResource
             'minimum_stock' => (float) $this->minimum_stock,
             'unit_cost' => (float) $this->unit_cost,
             'supplier' => $this->supplier,
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'created_at' => $this->formatDate($this->created_at),
+            'updated_at' => $this->formatDate($this->updated_at),
         ];
+    }
+
+    protected function formatDate($value): ?string
+    {
+        return $value?->copy()->timezone('America/Sao_Paulo')->format('Y-m-d\TH:i:sP');
     }
 }
