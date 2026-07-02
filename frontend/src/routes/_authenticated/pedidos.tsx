@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Check, X, Clock, ChefHat, AlertCircle, ArrowLeft, Eye, Receipt } from "lucide-react";
+import { Plus, Trash2, Check, X, Clock, ChefHat, AlertCircle, ArrowLeft, Eye, Receipt, ListFilter } from "lucide-react";
 import { toast } from "sonner";
 import { api, type ApiCollection } from "@/lib/api";
+import { formatDateBrasilia, formatTimeBrasilia, isTodayBrasilia } from "@/lib/brasilia-time";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
   component: PedidosPage,
@@ -43,8 +45,7 @@ type Order = {
 };
 
 const BRL = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const time = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—";
+const time = (iso?: string | null) => formatTimeBrasilia(iso);
 
 const statusStyle: Record<OrderStatus, string> = {
   pending: "bg-warning text-warning-foreground",
@@ -67,10 +68,7 @@ function minutesSince(iso: string | null | undefined) {
   if (!iso) return null;
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 }
-const isToday = (iso: string) => {
-  const d = new Date(iso); const n = new Date();
-  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
-};
+const isToday = (iso: string) => isTodayBrasilia(iso);
 
 function PedidosPage() {
   const qc = useQueryClient();
@@ -78,11 +76,14 @@ function PedidosPage() {
   const [detail, setDetail] = useState<Order | null>(null);
   const [confirmComplete, setConfirmComplete] = useState<Order | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [historyFrom, setHistoryFrom] = useState("");
+  const [historyTo, setHistoryTo] = useState("");
+  const [historyStatus, setHistoryStatus] = useState<OrderStatus | "all">("all");
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
-      const response = await api.get<ApiCollection<Order>>("/orders?per_page=200");
+      const response = await api.get<ApiCollection<Order>>("/orders?per_page=1000");
       return response.data;
     },
   });
@@ -127,6 +128,18 @@ function PedidosPage() {
     });
     return g;
   }, [orders]);
+
+  const historyOrders = useMemo(() => {
+    const filtered = (orders ?? []).filter((order) => {
+      const createdDate = formatDateBrasilia(order.created_at);
+      if (historyFrom && createdDate < historyFrom) return false;
+      if (historyTo && createdDate > historyTo) return false;
+      if (historyStatus !== "all" && order.status !== historyStatus) return false;
+      return true;
+    });
+
+    return filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [orders, historyFrom, historyTo, historyStatus]);
 
   const summary = useMemo(() => {
     const emAndamento = (orders ?? []).filter((o) => o.status === "pending" || o.status === "preparing");
@@ -218,6 +231,118 @@ function PedidosPage() {
           )}
         </OrderColumn>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="font-display flex items-center gap-2">
+            <Receipt className="size-4" /> Histórico de pedidos
+          </CardTitle>
+          <div className="grid gap-3 sm:grid-cols-[repeat(3,minmax(0,1fr))_auto] sm:items-end w-full lg:w-auto">
+            <div className="space-y-2">
+              <Label htmlFor="history-from" className="text-xs text-muted-foreground flex items-center gap-1">
+                <ListFilter className="size-3" /> Data inicial
+              </Label>
+              <Input
+                id="history-from"
+                type="date"
+                value={historyFrom}
+                onChange={(event) => setHistoryFrom(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="history-to" className="text-xs text-muted-foreground flex items-center gap-1">
+                <ListFilter className="size-3" /> Data final
+              </Label>
+              <Input
+                id="history-to"
+                type="date"
+                value={historyTo}
+                onChange={(event) => setHistoryTo(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="history-status" className="text-xs text-muted-foreground flex items-center gap-1">
+                <Check className="size-3" /> Status
+              </Label>
+              <Select value={historyStatus} onValueChange={(value) => setHistoryStatus(value as OrderStatus | "all")}> 
+                <SelectTrigger id="history-status">
+                  <SelectValue placeholder="Todos os status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="preparing">Preparando</SelectItem>
+                  <SelectItem value="completed">Concluído</SelectItem>
+                  <SelectItem value="cancelled">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setHistoryFrom("");
+                setHistoryTo("");
+                setHistoryStatus("all");
+              }}
+              disabled={!historyFrom && !historyTo && historyStatus === "all"}
+              className="sm:mb-0"
+            >
+              Limpar filtro
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {historyOrders.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              Nenhum pedido encontrado para o período e status selecionados.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Pedido</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Data de criação</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {historyOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">#{order.order_number}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span>{order.customer_name ?? "Sem cliente"}</span>
+                          <span className="text-xs text-muted-foreground">{order.order_type}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span>{formatDateBrasilia(order.created_at)}</span>
+                          <span className="text-xs text-muted-foreground">{time(order.created_at)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={statusStyle[order.status]}>{statusLabel[order.status]}</Badge>
+                      </TableCell>
+                      <TableCell>{BRL(order.total)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="outline" onClick={() => setDetail(order)}>
+                          <Eye className="size-4 mr-1" /> Ver detalhes
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {isLoading && <p className="text-center text-muted-foreground">Carregando…</p>}
 
@@ -418,7 +543,7 @@ function OrderDetailsDialog({ order }: { order: Order }) {
           )}
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm bg-muted rounded-lg p-3">
-          <div><p className="text-xs text-muted-foreground">Criado às</p>{time(order.created_at)}</div>
+          <div><p className="text-xs text-muted-foreground">Criado em</p>{formatDateBrasilia(order.created_at)} {time(order.created_at)}</div>
           <div><p className="text-xs text-muted-foreground">Preparo às</p>{time(order.started_at)}</div>
           <div><p className="text-xs text-muted-foreground">Concluído às</p>{time(order.completed_at)}</div>
           <div><p className="text-xs text-muted-foreground">Cancelado às</p>{time(order.cancelled_at)}</div>
