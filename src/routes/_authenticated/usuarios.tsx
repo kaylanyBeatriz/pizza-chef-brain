@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 import { AlertCircle, Check, Loader2, Shield, Trash2, UserX, Users } from "lucide-react";
 import { toast } from "sonner";
-import { api, type ApiCollection, type ApiError, type CurrentUser } from "@/lib/api";
+import { api, ApiError, type ApiCollection, type CurrentUser } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
