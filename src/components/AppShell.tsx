@@ -8,6 +8,7 @@ import {
   Users,
   LogOut,
   Menu,
+  Wallet,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
@@ -18,6 +19,7 @@ import logo from "@/assets/big-pizza-logo.png";
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/pedidos", label: "Pedidos", icon: ShoppingCart },
+  { to: "/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/estoque", label: "Ingredientes", icon: Carrot },
   { to: "/consumo", label: "Consumo", icon: Flame },
   { to: "/produtos", label: "Pizzas & Receitas", icon: Pizza },
