@@ -111,7 +111,7 @@ function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-3xl">Usuários</h1>
+          <h1 className="font-display text-2xl md:text-3xl font-semibold tracking-tight">Usuários</h1>
           <p className="text-muted-foreground text-sm">Gerencie permissões e status de acesso dos usuários cadastrados.</p>
         </div>
       </div>

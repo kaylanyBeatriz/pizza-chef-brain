@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,7 +57,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Forno Nobile — Gestão da Pizzaria" },
-      { name: "description", content: "Sistema de gestão para pizzaria: estoque, pedidos e dashboard." },
+      { name: "description", content: "Sistema de gestão para pizzaria: lançamento de despesas e controle das contas a pagar de cada mês." },
       {
         rel: "preconnect",
         href: "https://fonts.googleapis.com",
@@ -95,8 +95,15 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
 
+  const lastUserId = useRef<string | null | undefined>(undefined);
+
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+    // O Supabase dispara SIGNED_IN/TOKEN_REFRESHED ao voltar para a aba; só recarregamos se o usuário mudou.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const userId = session?.user?.id ?? null;
+      const previous = lastUserId.current;
+      lastUserId.current = userId;
+      if (previous === undefined || previous === userId) return;
       router.invalidate();
       queryClient.invalidateQueries();
     });

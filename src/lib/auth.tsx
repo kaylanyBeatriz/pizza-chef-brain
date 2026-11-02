@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { api, type CurrentUser } from "@/lib/api";
@@ -19,21 +19,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const rolesUserId = useRef<string | null>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       if (s?.user) {
-        // Defer DB call to avoid deadlocks
-        setTimeout(() => loadRoles(), 0);
+        // Só busca o perfil quando o usuário muda (não a cada refresh de token / foco da aba).
+        if (rolesUserId.current !== s.user.id) {
+          rolesUserId.current = s.user.id;
+          // Defer DB call to avoid deadlocks
+          setTimeout(() => loadRoles(), 0);
+        }
       } else {
+        rolesUserId.current = null;
         setRoles([]);
       }
     });
 
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (data.session?.user) loadRoles();
+      if (data.session?.user && rolesUserId.current !== data.session.user.id) {
+        rolesUserId.current = data.session.user.id;
+        loadRoles();
+      }
       setLoading(false);
     });
 

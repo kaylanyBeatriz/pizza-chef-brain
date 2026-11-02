@@ -84,6 +84,23 @@ function LoginPage() {
     }
   }
 
+  async function handleForgotPassword() {
+    if (!email) {
+      toast.error("Digite seu email para recuperar a senha.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Enviamos um link de recuperação para o seu email.");
+  }
+
   const isLogin = mode === "login";
 
   return (
@@ -193,7 +210,12 @@ function LoginPage() {
                   />
                   Lembrar-me
                 </label>
-                <button type="button" className="hover:text-gold transition-colors">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={loading}
+                  className="hover:text-gold transition-colors"
+                >
                   Esqueci minha senha
                 </button>
               </div>
