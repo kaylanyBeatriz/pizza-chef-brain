@@ -83,7 +83,7 @@ function RelatoriosPage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <StatTile label="Total pago" value={fmtBRL(total)} icon={Wallet} tone="success" hint={`${count} lançamento(s)`} />
         <StatTile label="Ainda a pagar" value={fmtBRL(data?.payable.total ?? 0)} icon={Clock} tone="warning" hint={`${data?.payable.count ?? 0} conta(s) em aberto`} />
-        <StatTile label="Maior categoria" value={rows[0]?.category ?? "—"} icon={PieChart} hint={rows[0] ? fmtBRL(rows[0].total) : undefined} />
+        <StatTile label="Maior gasto pago" value={rows[0]?.category ?? "—"} icon={PieChart} hint={rows[0] ? fmtBRL(rows[0].total) : undefined} />
       </div>
 
       <Card className="overflow-hidden">

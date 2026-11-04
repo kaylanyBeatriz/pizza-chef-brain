@@ -30,7 +30,9 @@ class FinanceController extends Controller
         $income = (float) (clone $paid)->where('type', Transaction::TYPE_INCOME)->sum('amount');
         $expense = (float) (clone $paid)->where('type', Transaction::TYPE_EXPENSE)->sum('amount');
 
-        $open = Transaction::query()->whereNull('paid_at');
+        // Open accounts belong to the selected period by their due date.
+        $open = Transaction::query()->whereNull('paid_at')
+            ->whereBetween('due_date', [$from->toDateString(), $to->toDateString()]);
         $receivable = (clone $open)->where('type', Transaction::TYPE_INCOME);
         $payable = (clone $open)->where('type', Transaction::TYPE_EXPENSE);
 

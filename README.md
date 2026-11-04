@@ -75,7 +75,7 @@ Preencha as variáveis Supabase e `VITE_API_URL=http://localhost:8000/api`. Conf
 
 Administradores e gerentes acessam o financeiro; somente administradores gerenciam usuários. O perfil operador permanece para contas sem acesso financeiro, até a liberação por um administrador.
 
-Lançamentos e contas mensais são filtrados por vencimento. Dashboard e relatórios calculam despesas realizadas pela data do pagamento. Os indicadores de contas em aberto no resumo financeiro consideram todos os vencimentos, independentemente do período selecionado.
+Lançamentos e contas mensais são filtrados por vencimento. Dashboard e relatórios calculam despesas realizadas pela data do pagamento. Os indicadores de contas em aberto no resumo financeiro consideram apenas os vencimentos dentro do período selecionado, incluindo as datas inicial e final.
 
 O contrato financeiro existente ainda aceita entradas e saídas na API; a interface trabalha com despesas.
 

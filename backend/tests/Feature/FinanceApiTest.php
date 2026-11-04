@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Transaction;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -63,6 +64,62 @@ class FinanceApiTest extends TestCase
             ->assertJsonPath('balance', 700)
             ->assertJsonPath('receivable.total', 500)
             ->assertJsonPath('receivable.count', 1);
+    }
+
+    public function test_summary_filters_recurring_open_accounts_by_due_date(): void
+    {
+        $firstDueDate = CarbonImmutable::parse('2026-11-10');
+
+        for ($month = 0; $month < 12; $month++) {
+            Transaction::query()->create([
+                'type' => 'expense', 'description' => 'Aluguel', 'category' => 'Aluguel',
+                'amount' => 3000, 'due_date' => $firstDueDate->addMonths($month)->toDateString(),
+            ]);
+        }
+
+        $this->getJson('/api/finance/summary?from=2026-11-01&to=2026-11-30')
+            ->assertOk()
+            ->assertJsonPath('payable.total', 3000)
+            ->assertJsonPath('payable.count', 1);
+
+        $this->getJson('/api/finance/summary?from=2026-12-01&to=2026-12-31')
+            ->assertOk()
+            ->assertJsonPath('payable.total', 3000)
+            ->assertJsonPath('payable.count', 1);
+
+        $this->getJson('/api/finance/summary?from=2026-11-01&to=2027-10-31')
+            ->assertOk()
+            ->assertJsonPath('payable.total', 36000)
+            ->assertJsonPath('payable.count', 12);
+    }
+
+    public function test_summary_includes_date_boundaries_and_keeps_paid_entries_by_payment_date(): void
+    {
+        foreach (['2026-10-31', '2026-11-01', '2026-11-30', '2026-12-01'] as $dueDate) {
+            foreach (['expense', 'income'] as $type) {
+                Transaction::query()->create([
+                    'type' => $type, 'description' => 'Conta', 'category' => 'Outros',
+                    'amount' => 100, 'due_date' => $dueDate,
+                ]);
+            }
+        }
+
+        Transaction::query()->create([
+            'type' => 'expense', 'description' => 'Conta paga', 'category' => 'Outros',
+            'amount' => 50, 'due_date' => '2026-10-31', 'paid_at' => '2026-11-05',
+        ]);
+        Transaction::query()->create([
+            'type' => 'expense', 'description' => 'Paga fora do periodo', 'category' => 'Outros',
+            'amount' => 75, 'due_date' => '2026-11-05', 'paid_at' => '2026-12-01',
+        ]);
+
+        $this->getJson('/api/finance/summary?from=2026-11-01&to=2026-11-30')
+            ->assertOk()
+            ->assertJsonPath('payable.total', 200)
+            ->assertJsonPath('payable.count', 2)
+            ->assertJsonPath('receivable.total', 200)
+            ->assertJsonPath('receivable.count', 2)
+            ->assertJsonPath('expense', 50);
     }
 
     public function test_validation_rejects_invalid_amount(): void
