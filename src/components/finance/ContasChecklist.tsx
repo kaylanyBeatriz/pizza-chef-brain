@@ -193,6 +193,7 @@ function BillRow({ t, pending, onToggle }: { t: Transaction; pending: boolean; o
     >
       <Checkbox
         checked={paid}
+        title={paid ? "Desmarcar conta como paga" : "Marcar como pago"}
         disabled={pending}
         onCheckedChange={onToggle}
         aria-label={`${paid ? "Desfazer baixa de" : "Dar baixa em"} ${t.description}`}
