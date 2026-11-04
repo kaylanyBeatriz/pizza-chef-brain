@@ -105,11 +105,12 @@ function DashboardPage() {
   const { data: prev } = useSummary(previous.from, previous.to);
 
   const { data: upcoming } = useQuery({
-    queryKey: ["transactions", "dashboard-open"],
+    queryKey: ["transactions", "dashboard-open", from, to],
     queryFn: async () => {
+      const params = new URLSearchParams({ type: "expense", per_page: "100", from, to });
       const [pending, overdue] = await Promise.all([
-        api.get<ApiCollection<Transaction>>("/finance/transactions?type=expense&status=pending&per_page=100"),
-        api.get<ApiCollection<Transaction>>("/finance/transactions?type=expense&status=overdue&per_page=100"),
+        api.get<ApiCollection<Transaction>>(`/finance/transactions?${params}&status=pending`),
+        api.get<ApiCollection<Transaction>>(`/finance/transactions?${params}&status=overdue`),
       ]);
       return [...overdue.data, ...pending.data].sort((a, b) => a.due_date.localeCompare(b.due_date)).slice(0, 6);
     },
@@ -206,7 +207,7 @@ function DashboardPage() {
             hint={overdueCount > 0 ? "Pague o quanto antes" : "Nenhuma conta atrasada"}
           />
           <Kpi
-            label="Maior gasto" value={top ? top.category : "—"} icon={PieIcon}
+            label="Maior gasto pago" value={top ? top.category : "—"} icon={PieIcon}
             tone="text-secondary bg-secondary/10" loading={isLoading}
             hint={top ? `${fmtBRL(top.total)} (${Math.round((top.total / categoryTotal) * 100)}%)` : "Sem despesas pagas"}
           />
@@ -265,7 +266,7 @@ function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="font-display text-lg">Despesas por categoria</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="font-display text-lg">Despesas pagas por categoria</CardTitle></CardHeader>
           <CardContent>
             {categories.length === 0 ? (
               <EmptyState text="Sem despesas pagas no período." />
@@ -304,7 +305,7 @@ function DashboardPage() {
           {(upcoming?.length ?? 0) === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 text-sm text-muted-foreground">
               <CheckCircle2 className="size-6 text-success" />
-              Nenhuma conta em aberto. Tudo em dia!
+              Nenhuma conta em aberto no período selecionado.
             </div>
           ) : (
             <ul className="divide-y">
