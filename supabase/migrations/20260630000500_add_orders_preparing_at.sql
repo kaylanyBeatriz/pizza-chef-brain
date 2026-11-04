@@ -1,4 +1,3 @@
-alter table public.orders
-  add column if not exists preparing_at timestamptz;
-
-notify pgrst, 'reload schema';
+-- Migration-history marker for the retired operational scope.
+-- Intentionally empty: new installations use Laravel's financial schema.
+-- Existing tables and data are preserved.

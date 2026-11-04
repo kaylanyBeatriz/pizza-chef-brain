@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -15,6 +16,8 @@ class SupabaseAuthenticationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Each test mocks a different identity for the same synthetic token.
+        Cache::store('file')->forget('supabase-auth:'.hash('sha256', 'valid-token'));
         config([
             'services.supabase.auth_bypass' => false,
             'services.supabase.url' => 'https://example.supabase.co',

@@ -76,8 +76,6 @@ function UsersPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["consumo"] });
       toast.success("Usuário atualizado.");
     },
     onError: (error: unknown) => {
@@ -94,8 +92,6 @@ function UsersPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["consumo"] });
       toast.success("Usuário excluído.");
     },
     onError: (error: unknown) => {

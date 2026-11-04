@@ -141,7 +141,7 @@ function LoginPage() {
             SISTEMA DE CONTROLE
           </h1>
           <p className="mt-1 text-base sm:text-lg font-medium text-primary-foreground tracking-wide">
-            Consumo &amp; Financeiro
+            Despesas &amp; Contas a pagar
           </p>
 
           <h2 className="font-display italic text-4xl sm:text-5xl mt-8 text-gold drop-shadow-[0_2px_8px_rgba(0,0,0,0.35)]">

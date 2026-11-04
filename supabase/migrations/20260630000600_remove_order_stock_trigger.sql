@@ -1,4 +1,3 @@
-drop trigger if exists trg_deduct_stock on public.orders;
-drop function if exists public.deduct_stock_on_complete();
-
-notify pgrst, 'reload schema';
+-- Migration-history marker for the retired operational scope.
+-- Intentionally empty: new installations use Laravel's financial schema.
+-- Existing tables and data are preserved.

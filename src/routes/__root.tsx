@@ -56,7 +56,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Forno Nobile — Gestão da Pizzaria" },
+      { title: "Big Pizza — Despesas e contas a pagar" },
       { name: "description", content: "Sistema de gestão para pizzaria: lançamento de despesas e controle das contas a pagar de cada mês." },
       {
         rel: "preconnect",
