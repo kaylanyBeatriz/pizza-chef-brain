@@ -1,6 +1,22 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
+const API_URL = resolveApiUrl((import.meta.env.VITE_API_URL ?? "http://localhost:8000/api").replace(/\/$/, ""));
+
+// Aberto pelo celular na rede local (ex.: http://192.168.1.5:8080), "localhost" seria o próprio celular:
+// troca pelo endereço do computador que serve a página.
+function resolveApiUrl(url: string): string {
+  if (typeof window === "undefined") return url;
+  const pageHost = window.location.hostname;
+  if (pageHost === "localhost" || pageHost === "127.0.0.1") return url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1") return url;
+    parsed.hostname = pageHost;
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return url;
+  }
+}
 
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number) {
@@ -15,7 +31,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body) headers.set("Content-Type", "application/json");
   if (session?.access_token) headers.set("Authorization", `Bearer ${session.access_token}`);
 
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, { ...init, headers });
+  } catch {
+    // "Failed to fetch": a API não respondeu (fora do ar, endereço errado ou bloqueio de CORS).
+    throw new ApiError(`Não foi possível conectar à API (${API_URL}). Verifique se o backend está rodando.`, 0);
+  }
   const text = await response.text();
   const body = text ? JSON.parse(text) : null;
 

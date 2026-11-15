@@ -87,7 +87,7 @@ function ResetPasswordPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-12 rounded-full bg-[oklch(0.46_0.18_27)] hover:bg-[oklch(0.42_0.18_27)] text-primary-foreground text-base font-semibold"
+              className="w-full h-12 rounded-full bg-[oklch(0.38_0.08_137.5)] hover:bg-[oklch(0.34_0.08_137.5)] text-primary-foreground text-base font-semibold"
             >
               {loading ? "Aguarde..." : "Salvar nova senha"}
             </Button>
