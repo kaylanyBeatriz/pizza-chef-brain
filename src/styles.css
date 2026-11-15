@@ -64,8 +64,8 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.22 0.03 50);
 
-  /* Primary: vermelho tomate (#b8242a) */
-  --primary: oklch(0.52 0.18 27);
+  /* Primary: verde escuro (#17320B) */
+  --primary: #17320b;
   --primary-foreground: oklch(0.985 0.012 85);
 
   /* Secondary: verde italiano (#0d4f1c) */
@@ -93,7 +93,7 @@
 
   --border: oklch(0.9 0.018 80);
   --input: oklch(0.92 0.015 80);
-  --ring: oklch(0.52 0.18 27);
+  --ring: #17320b;
 
   --chart-1: oklch(0.52 0.18 27);
   --chart-2: oklch(0.38 0.12 145);
@@ -103,12 +103,12 @@
 
   --sidebar: oklch(0.97 0.014 85);
   --sidebar-foreground: oklch(0.22 0.03 50);
-  --sidebar-primary: oklch(0.52 0.18 27);
+  --sidebar-primary: #17320b;
   --sidebar-primary-foreground: oklch(0.985 0.012 85);
   --sidebar-accent: oklch(0.93 0.025 85);
   --sidebar-accent-foreground: oklch(0.22 0.03 50);
   --sidebar-border: oklch(0.88 0.02 80);
-  --sidebar-ring: oklch(0.52 0.18 27);
+  --sidebar-ring: #17320b;
 }
 
 .dark {
@@ -118,7 +118,7 @@
   --card-foreground: oklch(0.97 0.012 85);
   --popover: oklch(0.22 0.025 50);
   --popover-foreground: oklch(0.97 0.012 85);
-  --primary: oklch(0.62 0.2 27);
+  --primary: oklch(0.5 0.1 137.5);
   --primary-foreground: oklch(0.985 0.012 85);
   --secondary: oklch(0.48 0.14 145);
   --secondary-foreground: oklch(0.985 0.012 85);
@@ -136,15 +136,15 @@
   --gold-foreground: oklch(0.22 0.03 50);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.62 0.2 27);
+  --ring: oklch(0.5 0.1 137.5);
   --sidebar: oklch(0.2 0.025 50);
   --sidebar-foreground: oklch(0.97 0.012 85);
-  --sidebar-primary: oklch(0.62 0.2 27);
+  --sidebar-primary: oklch(0.5 0.1 137.5);
   --sidebar-primary-foreground: oklch(0.985 0.012 85);
   --sidebar-accent: oklch(0.28 0.03 50);
   --sidebar-accent-foreground: oklch(0.97 0.012 85);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.62 0.2 27);
+  --sidebar-ring: oklch(0.5 0.1 137.5);
 }
 
 @layer base {
@@ -153,6 +153,13 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  /* Campos não ultrapassam a coluna no celular (o input de data tem largura mínima própria no iOS/Chrome). */
+  input, select, textarea { min-width: 0; }
+  input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+  @supports (-webkit-touch-callout: none) {
+    /* Só no iOS: sem isso o Safari ignora width:100% no campo de data. */
+    input[type="date"] { -webkit-appearance: none; }
   }
   h1, h2, h3, .font-display {
     font-family: var(--font-display);

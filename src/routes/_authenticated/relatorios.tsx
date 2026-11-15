@@ -92,7 +92,7 @@ function RelatoriosPage() {
             <TableRow>
               <TableHead>Categoria</TableHead>
               <TableHead className="text-right">Lançamentos</TableHead>
-              <TableHead>Participação</TableHead>
+              <TableHead className="hidden sm:table-cell">Participação</TableHead>
               <TableHead className="text-right">Total pago</TableHead>
             </TableRow>
           </TableHeader>
@@ -105,7 +105,7 @@ function RelatoriosPage() {
               <TableRow key={c.category}>
                 <TableCell><CategoryChip name={c.category} /></TableCell>
                 <TableCell className="text-right text-muted-foreground">{c.count}</TableCell>
-                <TableCell className="w-56">
+                <TableCell className="hidden w-56 sm:table-cell">
                   <div className="flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                       <div className="h-full rounded-full bg-primary/70" style={{ width: `${total ? (c.total / total) * 100 : 0}%` }} />
@@ -121,7 +121,7 @@ function RelatoriosPage() {
             <TableRow>
               <TableCell className="font-semibold">Total</TableCell>
               <TableCell className="text-right">{count}</TableCell>
-              <TableCell />
+              <TableCell className="hidden sm:table-cell" />
               <TableCell className="text-right font-semibold tabular-nums">{fmtBRL(total)}</TableCell>
             </TableRow>
           </TableFooter>

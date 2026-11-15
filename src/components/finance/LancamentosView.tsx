@@ -38,6 +38,8 @@ export function LancamentosView() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  // Muda a cada abertura para o formulário começar limpo (sem herdar "Já pago"/"Repetir" do cadastro anterior).
+  const [formKey, setFormKey] = useState(0);
 
   const { data, isLoading, isFetching, isPlaceholderData } = useQuery({
     queryKey: ["transactions", "lancamentos", status, from, to, search],
@@ -118,11 +120,12 @@ export function LancamentosView() {
               </DialogTrigger>
               <CategoriesDialog />
             </Dialog>
-            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
+            <Dialog open={open} onOpenChange={(o) => { if (o) setFormKey((k) => k + 1); setOpen(o); if (!o) setEditing(null); }}>
               <DialogTrigger asChild>
                 <Button onClick={() => setEditing(null)}><Plus className="size-4 mr-2" /> Novo lançamento</Button>
               </DialogTrigger>
               <TransactionDialog
+                key={formKey}
                 editing={editing} saving={save.isPending}
                 onSubmit={(payload, repeatMonths) => save.mutate({ payload, repeatMonths })}
               />
@@ -168,18 +171,18 @@ export function LancamentosView() {
         <Table className={isFetching && isPlaceholderData ? "opacity-50 transition-opacity" : "transition-opacity"}>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-20">Vence</TableHead>
+              <TableHead className="hidden w-20 sm:table-cell">Vence</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead className="text-right">Valor</TableHead>
-              <TableHead>Situação</TableHead>
-              <TableHead className="w-24"></TableHead>
+              <TableHead className="hidden sm:table-cell">Situação</TableHead>
+              <TableHead className="w-12 sm:w-24"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && <TableRow><TableCell colSpan={5} className="py-10 text-center text-muted-foreground">Carregando…</TableCell></TableRow>}
             {rows.map((t) => (
               <TableRow key={t.id}>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <DateBadge iso={t.due_date} tone={t.status === "paid" ? "muted" : t.status === "overdue" ? "danger" : "neutral"} />
                 </TableCell>
                 <TableCell>
@@ -188,14 +191,19 @@ export function LancamentosView() {
                     <CategoryChip name={t.category} />
                     {t.counterparty && <span className="text-xs text-muted-foreground">{t.counterparty}</span>}
                   </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 sm:hidden">
+                    <span className="text-xs text-muted-foreground">Vence {fmtDate(t.due_date)}</span>
+                    <StatusBadge status={t.status} />
+                  </div>
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-right text-base font-semibold tabular-nums">{fmtBRL(t.amount)}</TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <StatusBadge status={t.status} />
                   {t.paid_at && <p className="mt-1 text-xs text-muted-foreground">em {fmtDate(t.paid_at)}</p>}
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-right">
-                  <Button size="icon" variant="ghost" title="Editar" onClick={() => { setEditing(t); setOpen(true); }}>
+                <TableCell className="text-right">
+                  <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end">
+                  <Button size="icon" variant="ghost" title="Editar" onClick={() => { setEditing(t); setFormKey((k) => k + 1); setOpen(true); }}>
                     <Pencil className="size-4" />
                   </Button>
                   <Button
@@ -204,6 +212,7 @@ export function LancamentosView() {
                   >
                     <Trash2 className="size-4" />
                   </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

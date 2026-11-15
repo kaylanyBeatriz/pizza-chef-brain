@@ -13,6 +13,20 @@ import { Label } from "@/components/ui/label";
 import { PageHeader, StatusBadge } from "@/components/finance/ui";
 import { fmtBRL, fmtDate, monthRange, toDateInput, type FinanceSummary, type Transaction } from "@/lib/finance";
 
+// Campos "De" e "Até": largura total no celular (meio a meio); no computador, tamanho justo para a data + ícone.
+// Em telas bem estreitas (< 380px) o ícone do calendário some para a data caber; tocar no campo abre o calendário.
+const DATE_INPUT_CLASS =
+  "h-10 w-full cursor-pointer px-2.5 tracking-tight [&::-webkit-calendar-picker-indicator]:m-0 [&::-webkit-calendar-picker-indicator]:p-0 max-[379px]:[&::-webkit-calendar-picker-indicator]:hidden sm:h-[34px] sm:w-38 sm:px-2.5 sm:tracking-normal";
+
+// Abre o calendário ao tocar em qualquer parte do campo, não só no ícone.
+function openDatePicker(e: React.MouseEvent<HTMLInputElement>) {
+  try {
+    e.currentTarget.showPicker?.();
+  } catch {
+    // Navegador sem suporte: segue o comportamento padrão do campo.
+  }
+}
+
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,
 });
@@ -153,15 +167,15 @@ function DashboardPage() {
                 </Button>
               ))}
             </div>
-            <div className="flex items-end gap-2">
-              <div className="space-y-1">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-end">
+              <div className="min-w-0 space-y-1">
                 <Label htmlFor="dash-from" className="text-xs text-muted-foreground">De</Label>
-                <Input id="dash-from" type="date" className="h-9 w-36" value={from} max={to}
+                <Input id="dash-from" type="date" className={DATE_INPUT_CLASS} onClick={openDatePicker} value={from} max={to}
                   onChange={(e) => { if (!e.target.value) return; setFrom(e.target.value); if (e.target.value > to) setTo(e.target.value); }} />
               </div>
-              <div className="space-y-1">
+              <div className="min-w-0 space-y-1">
                 <Label htmlFor="dash-to" className="text-xs text-muted-foreground">Até</Label>
-                <Input id="dash-to" type="date" className="h-9 w-36" value={to} min={from}
+                <Input id="dash-to" type="date" className={DATE_INPUT_CLASS} onClick={openDatePicker} value={to} min={from}
                   onChange={(e) => { if (!e.target.value) return; setTo(e.target.value); if (e.target.value < from) setFrom(e.target.value); }} />
               </div>
             </div>
@@ -183,7 +197,7 @@ function DashboardPage() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="border-0 bg-gradient-to-br from-primary to-[oklch(0.4_0.17_27)] text-primary-foreground shadow-lg">
+        <Card className="border-0 bg-gradient-to-br from-primary to-[oklch(0.2_0.06_137.5)] text-primary-foreground shadow-lg">
           <CardContent className="pt-6 space-y-3">
             <div className="flex items-center gap-2 text-primary-foreground/85 text-sm">
               <Wallet className="size-4" /> Total pago no período
