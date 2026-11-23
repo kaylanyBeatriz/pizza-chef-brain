@@ -4,7 +4,6 @@ import {
   ArrowLeftRight,
   CalendarClock,
   FileBarChart,
-  Users,
   LogOut,
   Menu,
 } from "lucide-react";
@@ -19,19 +18,14 @@ const nav = [
   { to: "/lancamentos", label: "Lançamentos", icon: ArrowLeftRight, group: "Despesas" },
   { to: "/contas", label: "Contas a pagar", icon: CalendarClock, group: "Despesas" },
   { to: "/relatorios", label: "Relatórios", icon: FileBarChart, group: "Despesas" },
-  { to: "/usuarios", label: "Usuários", icon: Users, group: "Administração" },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, roles, signOut } = useAuth();
-  const canAccessUsers = roles.includes("admin");
   const canAccessFinance = roles.includes("admin") || roles.includes("gerente");
-  const visibleNav = nav.filter((item) => {
-    if (item.to === "/usuarios") return canAccessUsers;
-    return canAccessFinance;
-  });
+  const visibleNav = canAccessFinance ? nav : [];
   const groups = Array.from(new Set(visibleNav.map((i) => i.group)));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);

@@ -187,7 +187,7 @@ function BillRow({ t, pending, onToggle }: { t: Transaction; pending: boolean; o
   const overdue = t.status === "overdue";
   return (
     <li
-      className={`flex items-center gap-4 border-l-4 px-4 py-3.5 transition-colors hover:bg-accent/40 ${
+      className={`flex items-center gap-3 border-l-4 px-3 py-3.5 sm:gap-4 sm:px-4 transition-colors hover:bg-accent/40 ${
         overdue ? "border-l-destructive bg-destructive/[0.03]" : paid ? "border-l-transparent bg-muted/30" : "border-l-transparent"
       }`}
     >
@@ -201,7 +201,7 @@ function BillRow({ t, pending, onToggle }: { t: Transaction; pending: boolean; o
       />
       <DateBadge iso={t.due_date} tone={paid ? "muted" : overdue ? "danger" : "neutral"} />
       <div className="min-w-0 flex-1 space-y-1">
-        <p className={`truncate font-medium ${paid ? "text-muted-foreground line-through" : ""}`}>{t.description}</p>
+        <p className={`line-clamp-2 font-medium ${paid ? "text-muted-foreground line-through" : ""}`}>{t.description}</p>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <CategoryChip name={t.category} />
           {t.counterparty && <span className="truncate text-xs text-muted-foreground">{t.counterparty}</span>}
@@ -211,7 +211,7 @@ function BillRow({ t, pending, onToggle }: { t: Transaction; pending: boolean; o
         <StatusBadge status={t.status} />
         <p className="mt-1 text-muted-foreground">{dueLabel(t)}</p>
       </div>
-      <p className={`w-28 text-right text-base font-semibold tabular-nums ${paid ? "text-muted-foreground" : ""}`}>{fmtBRL(t.amount)}</p>
+      <p className={`shrink-0 whitespace-nowrap text-right text-sm font-semibold tabular-nums sm:w-28 sm:text-base ${paid ? "text-muted-foreground" : ""}`}>{fmtBRL(t.amount)}</p>
     </li>
   );
 }

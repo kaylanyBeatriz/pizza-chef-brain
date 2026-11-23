@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { api, type CurrentUser } from "@/lib/api";
+import { disableGuestAccess, hasGuestAccess } from "@/lib/guest";
 
 export type AppRole = "admin" | "gerente" | "operador";
 
@@ -65,7 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         roles,
         loading,
-        signOut: async () => { await supabase.auth.signOut(); },
+        signOut: async () => {
+          disableGuestAccess();
+          await supabase.auth.signOut();
+        },
       }}
     >
       {children}
@@ -76,5 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  // Acesso sem conta enxerga o menu completo, como administrador.
+  if (hasGuestAccess()) return { ...ctx, roles: ["admin"] as AppRole[] };
   return ctx;
 }
